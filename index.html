@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<html>
+<head>
+  <title>SprEd - Atari Sprite Editor</title>
+  <!-- <script src="js/Sortable.js"></script> -->
+  <script src='https://code.jquery.com/jquery-latest.min.js' type='text/javascript'></script>
+  <!-- <script src="js/jquery-sortable.js"></script>   -->
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.5/lodash.js' type='text/javascript'></script>
+  <link rel='stylesheet' type='text/css' href='css/style.css'>
+</head>
+
+<body>
+  <div id='app'>
+    <ul id='listmenu' class='menulist'></ul>
+  </div>
+
+  <div id='main'>
+    <div id='editor_box'></div>
+    <div id='color_box'>
+      <div class='colorbox' id='color0'>COLOR 0</div>
+      <div class='colorbox' id='color1'>COLOR 1</div>
+      <div class='colorbox' id='color2'>COLOR 2</div>
+      <div class='colorbox' id='color3'>OR COLOR</div>
+    </div>
+  </div>
+
+
+  <div id='export_dialog' class='dialog'>
+      <div class='dialog_title'>Export</div>
+      <div class='dialog_content'>
+        <div class='dialog_blocks'>
+          <div class='dialog_block'>
+            <fieldset>
+              <label class='dialog_label'>Template:</label>
+              <select id='opt_lastTemplate_i' class='dialog_text_input'>
+              </select>
+            </fieldset>
+            <textarea id='export_frame'></textarea>
+            <hr>
+          </div>
+
+        </div>
+        <div class='menuitem clear_left' id='close_export'>Close</div>
+      </div>
+  </div>
+  
+
+  <div id='options_dialog' class='dialog'>
+      <div class='dialog_title'>Options</div>
+      <div class='dialog_content'>
+        <div class='dialog_blocks'>
+          <div class='dialog_block'>
+
+            <h3>Options:</h3>
+
+            <fieldset>
+              <label class='dialog_label'>Sprite Height:</label>
+              <input type='text' id='opt_spriteHeight_i' class='dialog_text_input input_narrow'>
+            </fieldset>
+
+            <fieldset>
+              <label class='dialog_label'>Sprite Gap:</label>
+              <input type='text' id='opt_spriteGap_i' class='dialog_text_input input_narrow'>
+            </fieldset>
+
+            <fieldset>
+              <label class='dialog_label'>Pixel Aspect ratio:</label>
+              <select id='opt_aspect_i' class='dialog_text_input'>
+                <option value='1'>1:1</option>
+                <option value='2'>2:1</option>
+              </select>
+            </fieldset>
+
+            <fieldset>
+              <label class='dialog_label checkbox_label'>
+                <input type='checkbox' id='opt_showGrid_b'/>Show Grid:</label>
+            </fieldset>
+            <hr>
+
+            <fieldset>
+              <label class='dialog_label'>Palette:</label>
+              <select id='opt_palette_s' class='dialog_text_input'>
+                <option value='PAL'>PAL</option>
+                <option value='NTSC'>NTSC</option>
+              </select>
+            </fieldset>
+
+            <fieldset>
+              <label class='dialog_label'>Editor Size:</label>
+              <select id='opt_cellSize_i' class='dialog_text_input'>
+                <option value='16'>x1</option>
+                <option value='24'>x2</option>
+                <option value='32'>x3</option>
+              </select>
+            </fieldset>
+
+            <br>
+
+            <h3>Import/Export Options:</h3>
+            <fieldset>
+              <label class='dialog_label'>Show bytes as:</label>
+              <select id='opt_bytesExport_s' class='dialog_text_input'>
+                  <option value='HEX'>HEX</option>
+                  <option value='DEC'>DEC</option>
+              </select>
+            </fieldset>
+
+            <fieldset>
+              <label class='dialog_label'>Bytes per line:</label>
+              <input type='text' id='opt_bytesPerLine_i' class='dialog_text_input input_narrow'>
+            </fieldset>
+
+          </div>
+
+        </div>
+        <hr>
+        <div class='menuitem clear_left' id='save_options'>Save</div>
+      </div>
+  </div>
+
+  <script src='js/exportTemplates.js' type='text/javascript'></script>
+  <script src='js/gui.js' type='text/javascript'></script>
+  <script src='js/app.js' type='text/javascript'></script>
+</body>
+
+</html>

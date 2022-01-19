@@ -1,0 +1,311 @@
+* {
+  margin: 0;
+  padding: 0;
+  line-height: 1.2em;
+  border:0;
+}
+
+body {
+  background-color: rgb(70, 47, 33);
+  color:rgb(164, 190, 224);
+  font-family: Arial, sans-serif;
+  margin:10px 10px;
+
+  -moz-user-select: none;
+  -khtml-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+
+}
+
+.menulist {
+  display: block;
+  overflow: auto;
+  margin-bottom: 6px;
+  border-bottom: 1px dotted #666;
+  width: 100%;
+}
+
+
+.menuitem {
+  display: block;
+  float: left;
+  padding: 2px 6px;
+  background-color: #aaa;
+  color: #222  !important;
+  cursor: pointer;
+  margin-right: 5px;
+  border-top: 1px solid #ccc;
+  border-left: 1px solid #ccc;
+  border-right: 1px solid #666;
+  border-bottom: 1px solid #666;
+  border-radius: 4px;
+  text-shadow:  1px 1px 0px #ccc;
+  font-size: 14px;
+  height: 15px;
+  line-height: 1em;
+  margin-bottom: 6px;
+  font-family: Arial, helvetica, sans-serif;
+  font-weight: bold;
+}
+
+.menuseparator {
+  display: block;
+  float: left;
+  width: 0px;
+  height:16px;
+  margin: 2px 7px 0 2px;
+  border-left: 1px solid #666;
+  border-right: 1px dotted #888;
+}
+
+.menubr {
+  clear: left;
+  display: block;
+  float: left;
+  width: 0px;
+  height: auto;
+  padding-top:10px;
+}
+
+.break {
+  clear: left;
+}
+
+.fleft {
+  float: left;
+}
+
+.fright {
+  float: right;
+}
+
+.block {
+  display: block;
+}
+
+.green {
+  color: #8f8;
+}
+
+.red {
+  color: #f88;
+}
+
+.blue {
+  color: #88f;
+}
+
+pre {
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.dialog {
+    position:absolute;
+    display:none;
+    background:rgb(138, 180, 187);
+    color:#000;
+    border-radius:5px;
+    box-shadow: 0 0 4px #000;
+    border: 2px solid #000;
+    overflow:hidden;
+    font-size:12px;
+    z-index: 1000;
+}
+
+#options_dialog {
+    top: 44px;
+    left:200px;
+}
+
+#export_dialog {
+    top: 44px;
+    left:103px;
+    width:580px;
+}
+
+
+#export_frame {
+  margin: 5px 0;
+  width:560px;
+  min-height:300px;
+}
+
+.dialog_title {
+    position:relative;
+    width:100%;
+    background:rgb(54, 81, 87);
+    color:rgb(138, 180, 187);
+    text-align: center;
+    margin-bottom:5px;
+    padding:3px;
+    font-weight:bold;
+}
+
+.dialog_content {
+    padding:10px;
+}
+
+.dialog_content h3 {
+  margin-bottom: 8px;
+}
+
+.dialog_label {
+    padding-top:4px;
+    display:block;
+    float: left;
+    width: 120px;
+}
+
+.checkbox_label {
+  width: auto;
+  clear: left;
+}
+
+.checkbox_label input {
+  display:block;
+  float:left;
+  margin:0 1em 4px 0 !important;
+}
+
+fieldset, hr {
+  margin-bottom:4px;
+}
+
+.dialog_text_input {
+    border:1px solid #888;
+    padding:2px;
+}
+
+
+.dialog_block {
+    display: block;
+    float: left;
+}
+
+.dialog_block:not(:last-child) {
+    margin-right:10px;
+    padding-right:10px;
+    border-right:1px solid #454;
+}
+
+.clear_left {
+    clear:left;
+}
+
+.input_narrow {
+    width: 40px;
+}
+
+.input_narrows {
+    width: 50px;
+}
+
+hr {
+    border-bottom: 1px dotted #787;
+    width:100%;
+}
+
+input:disabled {
+  opacity: 0.3;
+}
+
+#ver {
+  font-weight: bolder;
+}
+
+.fileinput {
+  position: absolute;
+  clip: rect( 0, 0, 0, 0 );
+}
+
+#main {
+  margin-top:10px;
+}
+
+#editor_box {
+  position: relative;
+  z-index: 500;
+  float: left;
+  margin-right: 15px;
+}
+
+#editor_canvas {  
+  position: relative;
+  background-color: #000;
+}
+
+#color_box {
+  position: relative;
+  float: left;
+}
+
+.colorbox {
+  border-radius: 3px;
+  position: relative;
+  border-style: solid;
+  border-width:1px;
+  border-bottom-color:#444;
+  border-right-color:#444;
+  border-top-color:#888;
+  border-left-color: #888;
+  width: 120px;
+  height: 24px;
+  margin-bottom: 4px;
+  line-height: 24px;
+  font-size: 11px;
+  font-weight: 900;
+  text-indent: 1em;
+  color:#000;
+  text-shadow: rgb(255, 255, 255, 0.5) 1px 1px 1px;
+  cursor: pointer;
+}
+
+.picker {
+  position: absolute;
+  border-style: solid;
+  border-width:1px;
+  border-radius: 3px;
+  border-bottom-color:#aaa;
+  border-right-color:#aaa;
+  border-top-color:#444;
+  border-left-color: #444;
+
+  width: 16px;
+  height: 14px;
+  right:5px;
+  top: 4px;
+  background-image: url(../img/palette.png);
+  background-size: cover;
+}
+
+.colorSelected {
+  color:#fff;
+  text-shadow: rgb(0, 0, 0) 1px 1px 1px;
+  border-bottom-color:#888;
+  border-right-color:#888;
+  border-top-color:#444;
+  border-left-color: #444;
+  text-indent: 0.9em;
+}
+
+.palette {
+  padding: 3px;
+  float:left;
+  background-color: #000;
+  overflow: auto;
+  z-index: 1200;
+  margin-left: 5px;
+}
+
+.colorCell {
+  width: 16px;
+  height: 16px;
+  float: left;
+  margin: 0 0 1px 1px;
+}
+
+.palette_firstinrow {
+  clear: both;
+}
