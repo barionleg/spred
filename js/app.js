@@ -1,11 +1,11 @@
 const defaultOptions = {
     version: '0.11',
-    storageName: 'SprEdStore001',
-    aspect: 2,
+    storageName: 'SprEdStore011',
+    aspect: 1,
     spriteHeight: 16,
-    spriteGap: 4,
+    spriteGap: 0,
     showGrid: 1,
-    cellSize: 24,
+    cellSize: 16,
     palette: 'PAL',
     bytesExport: 'HEX',
     bytesPerLine: 10
