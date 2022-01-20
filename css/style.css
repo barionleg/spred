@@ -310,3 +310,18 @@ input:disabled {
 .palette_firstinrow {
   clear: both;
 }
+
+.cellSelected
+{
+  box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+  border: 1px solid red;
+}
+
+.framepreview {
+  float:left;
+  margin-top: 10px;
+  margin-right: 10px;
+  border: 1px solid black;
+}

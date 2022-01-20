@@ -1,3 +1,4 @@
+const GRID_COLOR = 'rgba(200,200,200,0.3)';
 const defaultOptions = {
     version: '0.22',
     storageName: 'SprEdStore022',
@@ -107,7 +108,9 @@ const updateColors = colors => {
         colors = getColors();
     }
     for (let i=0;i<4;i++) {
-        $(`#color${i}`).css('background-color',getByteRGB(colors[i]))
+        $(`#color${i}`)
+        .css('background-color',getByteRGB(colors[i]))
+        .attr('title',`${colors[i]} ($${decimalToHex(colors[i]).toUpperCase()})`)
     }
     colorClicked(workspace.selectedColor);
 }
@@ -226,15 +229,18 @@ const showPalette = c => {
         const pal = $("<div/>")
         .attr('id',`pal${c}`)
         .addClass('palette');
-        
         let cval = 0;
+        const colors = getColors();
+
         while (cval<256) {
-            const c = getByteRGB(cval);
+            const rgb = getByteRGB(cval);
+            const cellClass = (cval == colors[c])?'cellSelected':'';
             const cell = $("<div/>")
             .addClass('colorCell')
+            .addClass(cellClass)
             .attr('id',`col_${cval}`)
-            .attr('title',`${cval}`)
-            .css('background-color', c)
+            .attr('title',`${cval} ($${decimalToHex(cval).toUpperCase()})`)
+            .css('background-color', rgb)
             .bind('mousedown',colorCellClicked)
             if (cval % 16 == 0) cell.addClass('palette_firstinrow');
     
@@ -344,6 +350,27 @@ const newCanvas = () => {
     //editor.imageSmoothingEnabled = false;
 }
 
+const getFrameImage = (frame, scalex, scaley) => {
+    const w = (8 + options.spriteGap) * scalex;
+    const h = options.spriteHeight * scaley;
+    const cnv = $('<canvas/>')
+    .addClass('framepreview')
+    .attr('width', w)
+    .attr('height', h)
+    const ctx = cnv[0].getContext('2d');
+    console.log(ctx);
+    const imageData = ctx.createImageData(w, h);
+    for (let row=0;row<h;row++) {
+        for (let col=0;col<w;col++) {
+            const crgb = getColorOn(col, row);
+            ctx.fillStyle = crgb;
+            ctx.lineWidth = 0;
+            ctx.fillRect(col*scalex,row*scaley,scalex,scaley);
+        }
+    }
+    return cnv
+}
+
 const clearSprites = () => {
     sprite.data0 = [];
     sprite.data1 = [];
@@ -353,12 +380,28 @@ const clearSprites = () => {
     }
 }
 
-
-
 const drawBlock = (x,y,crgb) => {
     editor.fillStyle = crgb;
     editor.lineWidth = 0;
     editor.fillRect(x * editorWindow.cxoffset - options.showGrid, y * editorWindow.cyoffset - options.showGrid, editorWindow.cwidth, editorWindow.cheight);
+}
+
+const drawEditor = () => {
+    editor.clearRect(0,0,editorWindow.swidth,editorWindow.sheight);
+    for (let row=0;row<options.spriteHeight;row++) {
+        for (let col=0;col<editorWindow.columns;col++) {
+            drawBlock(col, row, getColorOn(col, row));
+        }
+    }
+    if(options.showGrid>0) {
+        drawGrid();
+    }
+
+    $("#framepreview").empty();
+    $("#framepreview").append(getFrameImage(workspace.selectedFrame,2,2));
+    $("#framepreview").append(getFrameImage(workspace.selectedFrame,4,2));
+    $("#framepreview").append(getFrameImage(workspace.selectedFrame,8,2).addClass('clear_left'));
+
 }
 
 const drawGridLine = (x1,y1,x2,y2) => {
@@ -366,7 +409,7 @@ const drawGridLine = (x1,y1,x2,y2) => {
     editor.moveTo(x1, y1);
     editor.lineTo(x2, y2);
     editor.lineWidth = options.showGrid;
-    editor.strokeStyle = 'rgba(200,200,200,0.3)';
+    editor.strokeStyle = GRID_COLOR;
     editor.stroke();
 };
 
@@ -382,19 +425,7 @@ const drawGrid = () => {
     }
 }
 
-const drawEditor = () => {
-    editor.clearRect(0,0,editorWindow.swidth,editorWindow.sheight);
-    for (let row=0;row<options.spriteHeight;row++) {
-        for (let col=0;col<editorWindow.columns;col++) {
-            drawBlock(col, row, getColorOn(col, row));
-        }
-    }
 
-    if(options.showGrid>0) {
-        drawGrid();
-    }
-
-}
 
 // *********************************** OPTIONS
 
@@ -877,19 +908,19 @@ const moveFrameRight = () => {
 const moveFrameUp = () => {
     workspace.frames[workspace.selectedFrame].data0.length = options.spriteHeight;
     workspace.frames[workspace.selectedFrame].data1.length = options.spriteHeight;
-    workspace.frames[workspace.selectedFrame].data0.shift();
-    workspace.frames[workspace.selectedFrame].data0.push(0);
-    workspace.frames[workspace.selectedFrame].data1.shift();
-    workspace.frames[workspace.selectedFrame].data1.push(0);
+    const b0 = workspace.frames[workspace.selectedFrame].data0.shift();
+    const b1 = workspace.frames[workspace.selectedFrame].data1.shift();
+    workspace.frames[workspace.selectedFrame].data0.push(options.wrapEditor?b0:0);
+    workspace.frames[workspace.selectedFrame].data1.push(options.wrapEditor?b1:0);
     drawingEnded();
 }
 const moveFrameDown = () => {
     workspace.frames[workspace.selectedFrame].data0.length = options.spriteHeight;
     workspace.frames[workspace.selectedFrame].data1.length = options.spriteHeight;
-    workspace.frames[workspace.selectedFrame].data0.unshift(0);
-    workspace.frames[workspace.selectedFrame].data0.pop();
-    workspace.frames[workspace.selectedFrame].data1.unshift(0);
-    workspace.frames[workspace.selectedFrame].data1.pop();
+    const b0 = workspace.frames[workspace.selectedFrame].data0.pop();
+    const b1 = workspace.frames[workspace.selectedFrame].data1.pop();
+    workspace.frames[workspace.selectedFrame].data0.unshift(options.wrapEditor?b0:0);
+    workspace.frames[workspace.selectedFrame].data1.unshift(options.wrapEditor?b1:0);
     drawingEnded();
 }
 
