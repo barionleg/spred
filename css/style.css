@@ -325,3 +325,48 @@ input:disabled {
   margin-right: 10px;
   border: 1px solid black;
 }
+
+#framelist {
+  clear: both;
+  float:left;
+  background-color:rgb(83, 59, 43);
+  min-height: 10px;  
+  width: 100%;
+  margin:8px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+}
+
+.framebox {
+  float: left;
+  clear: none;
+  font-size: 10px;
+  line-height: 12px;
+  font-weight: bold;
+  background-color:rgb(44, 36, 31);
+  color:rgb(58, 98, 114);
+  padding:2px 5px 5px 5px;
+  margin:0 2px 2px 0;
+  cursor: pointer;
+}
+
+.framebox>div {
+  pointer-events: none; 
+}
+
+.framebox>canvas {
+  float:left;
+  margin:0;
+  border: 1px solid black;
+  pointer-events: none; 
+}
+
+.currentFrame {
+  background-color:rgb(97, 80, 69);
+  color:rgb(91, 155, 180);
+}
+
+.currentFrame>canvas {
+  border: 1px solid white;
+}
