@@ -1,11 +1,12 @@
 const defaultOptions = {
-    version: '0.11',
-    storageName: 'SprEdStore011',
+    version: '0.22',
+    storageName: 'SprEdStore022',
     aspect: 1,
     spriteHeight: 16,
     spriteGap: 0,
     showGrid: 1,
     cellSize: 16,
+    wrapEditor: 1,
     palette: 'PAL',
     bytesExport: 'HEX',
     bytesPerLine: 10
@@ -14,17 +15,34 @@ let options = {};
 let editor = null;
 const dontSave = ['version', 'storageName'];
 
-const state = {
-    selectedColor:1,
-    backgroundColor:0
+const defaultWorkspace = {
+    selectedColor: 1,
+    selectedFrame: 0,
+    backgroundColor: 0,
+    clipboard: null,
+    frames: []
 }
 
-const sprite = {
-    data0: [],
-    data1: [],
-    colors: [0x24,0xba]
-}
+let workspace = {};
 
+const reversedBytes = [
+    0x00, 0x80, 0x40, 0xC0, 0x20, 0xA0, 0x60, 0xE0, 0x10, 0x90, 0x50, 0xD0, 0x30, 0xB0, 0x70, 0xF0,
+    0x08, 0x88, 0x48, 0xC8, 0x28, 0xA8, 0x68, 0xE8, 0x18, 0x98, 0x58, 0xD8, 0x38, 0xB8, 0x78, 0xF8,
+    0x04, 0x84, 0x44, 0xC4, 0x24, 0xA4, 0x64, 0xE4, 0x14, 0x94, 0x54, 0xD4, 0x34, 0xB4, 0x74, 0xF4,
+    0x0C, 0x8C, 0x4C, 0xCC, 0x2C, 0xAC, 0x6C, 0xEC, 0x1C, 0x9C, 0x5C, 0xDC, 0x3C, 0xBC, 0x7C, 0xFC,
+    0x02, 0x82, 0x42, 0xC2, 0x22, 0xA2, 0x62, 0xE2, 0x12, 0x92, 0x52, 0xD2, 0x32, 0xB2, 0x72, 0xF2,
+    0x0A, 0x8A, 0x4A, 0xCA, 0x2A, 0xAA, 0x6A, 0xEA, 0x1A, 0x9A, 0x5A, 0xDA, 0x3A, 0xBA, 0x7A, 0xFA,
+    0x06, 0x86, 0x46, 0xC6, 0x26, 0xA6, 0x66, 0xE6, 0x16, 0x96, 0x56, 0xD6, 0x36, 0xB6, 0x76, 0xF6,
+    0x0E, 0x8E, 0x4E, 0xCE, 0x2E, 0xAE, 0x6E, 0xEE, 0x1E, 0x9E, 0x5E, 0xDE, 0x3E, 0xBE, 0x7E, 0xFE,
+    0x01, 0x81, 0x41, 0xC1, 0x21, 0xA1, 0x61, 0xE1, 0x11, 0x91, 0x51, 0xD1, 0x31, 0xB1, 0x71, 0xF1,
+    0x09, 0x89, 0x49, 0xC9, 0x29, 0xA9, 0x69, 0xE9, 0x19, 0x99, 0x59, 0xD9, 0x39, 0xB9, 0x79, 0xF9,
+    0x05, 0x85, 0x45, 0xC5, 0x25, 0xA5, 0x65, 0xE5, 0x15, 0x95, 0x55, 0xD5, 0x35, 0xB5, 0x75, 0xF5,
+    0x0D, 0x8D, 0x4D, 0xCD, 0x2D, 0xAD, 0x6D, 0xED, 0x1D, 0x9D, 0x5D, 0xDD, 0x3D, 0xBD, 0x7D, 0xFD,
+    0x03, 0x83, 0x43, 0xC3, 0x23, 0xA3, 0x63, 0xE3, 0x13, 0x93, 0x53, 0xD3, 0x33, 0xB3, 0x73, 0xF3,
+    0x0B, 0x8B, 0x4B, 0xCB, 0x2B, 0xAB, 0x6B, 0xEB, 0x1B, 0x9B, 0x5B, 0xDB, 0x3B, 0xBB, 0x7B, 0xFB,
+    0x07, 0x87, 0x47, 0xC7, 0x27, 0xA7, 0x67, 0xE7, 0x17, 0x97, 0x57, 0xD7, 0x37, 0xB7, 0x77, 0xF7,
+    0x0F, 0x8F, 0x4F, 0xCF, 0x2F, 0xAF, 0x6F, 0xEF, 0x1F, 0x9F, 0x5F, 0xDF, 0x3F, 0xBF, 0x7F, 0xFF,
+];
 
 // ******************************* HELPERS
 
@@ -60,14 +78,27 @@ const userIntParse = (udata) => {
     }
 }
 
+const getEmptyFrame = () => {
+    const frame = {
+        data0: [],
+        data1: [],
+        colors: [0x24, 0xc8]
+    }
+    for (let r=0;r<options.spriteHeight;r++) {
+        frame.data0[r] = 0;
+        frame.data1[r] = 0;
+    }
+    return frame;
+}
+
 // *********************************** COLORS
 
 const getColors = () => {
     return [
-        state.backgroundColor,
-        sprite.colors[0],
-        sprite.colors[1],
-        sprite.colors[0] | sprite.colors[1]
+        workspace.backgroundColor,
+        currentFrame().colors[0],
+        currentFrame().colors[1],
+        currentFrame().colors[0] | currentFrame().colors[1]
     ];
 }
 
@@ -78,13 +109,14 @@ const updateColors = colors => {
     for (let i=0;i<4;i++) {
         $(`#color${i}`).css('background-color',getByteRGB(colors[i]))
     }
-    colorClicked(state.selectedColor);
+    colorClicked(workspace.selectedColor);
 }
 
 const colorClicked = (c) => {
-    state.selectedColor = c;
+    workspace.selectedColor = c;
     $('.colorbox').removeClass('colorSelected');
     $(`#color${c}`).addClass('colorSelected');
+    storeWorkspace();
 }
 
 const getColorRGB = c => {
@@ -120,9 +152,14 @@ const getByteRGB = (cval) => {
     return rgb;
 }
 
+const currentFrame = () => {
+    return  workspace.frames[workspace.selectedFrame];
+};
+
+
 const getColorOn = (col,row) => {
-    const b0 = sprite.data0[row];
-    const b1 = sprite.data1[row];
+    const b0 = currentFrame().data0[row];
+    const b1 = currentFrame().data1[row];
     const m0 = 0b10000000 >> col;
     const m1offset = col - options.spriteGap;
     const m1 = m1offset<0?0:0b10000000 >> m1offset;
@@ -140,16 +177,16 @@ const setColorOn = (col,row,color) => {
         const m1offset = col - options.spriteGap;
         const m1 = m1offset<0?0:0b10000000 >> m1offset;
         if (m0) {
-            sprite.data0[row] = sprite.data0[row] & (~m0 & 0xff) 
+            currentFrame().data0[row] = currentFrame().data0[row] & (~m0 & 0xff) 
             if (c0) {
-                sprite.data0[row] = sprite.data0[row] | m0
+                currentFrame().data0[row] = currentFrame().data0[row] | m0
                 c |= c0;
             }
         }
         if (m1) {
-            sprite.data1[row] = sprite.data1[row] & (~m1 & 0xff) 
+            currentFrame().data1[row] = currentFrame().data1[row] & (~m1 & 0xff) 
             if (c1) {
-                sprite.data1[row] = sprite.data1[row] | m1
+                currentFrame().data1[row] = currentFrame().data1[row] | m1
                 c |= c1;
             }
         }
@@ -159,15 +196,16 @@ const setColorOn = (col,row,color) => {
 const setNewColor = (c, cval) => {
     switch (c) {
         case 0:
-            state.backgroundColor = cval;
+            workspace.backgroundColor = cval;
             break;
         case 1:
-            sprite.colors[0] = cval;
+            currentFrame().colors[0] = cval;
             break;
         case 2:
-            sprite.colors[1] = cval;
+            currentFrame().colors[1] = cval;
             break;
     }
+    storeWorkspace();
 }
 
 const colorCellClicked = e => {
@@ -206,9 +244,6 @@ const showPalette = c => {
         $("#main").append(pal);
 
     }
-    
-
-
 }
 
 const pickerClicked = (e) => {
@@ -258,7 +293,7 @@ const onCanvasMove = (event) => {
 }
 
 const clickLeftOnCanvas = (event) => {
-    let color = state.selectedColor;
+    let color = workspace.selectedColor;
     if (event.buttons == 2) { // right
             color = 0;
     }
@@ -272,9 +307,14 @@ const clickRightOnCanvas = (event) => {
     return false;
 }
 
+const drawingEnded = () => {
+    drawEditor();
+    storeWorkspace();
+}
+
 const onMouseOut = (e) => {
     if (e.buttons > 0) {
-        drawEditor();
+        drawingEnded();
     }
 }
 
@@ -295,7 +335,7 @@ const newCanvas = () => {
     .contextmenu(clickRightOnCanvas)
     .bind('mousedown',clickLeftOnCanvas)
     .bind('mousemove',onCanvasMove)
-    .bind('mouseup',drawEditor)
+    .bind('mouseup',drawingEnded)
     .bind('mouseleave',onMouseOut)
 
     $('#editor_box').append(cnv);
@@ -405,9 +445,9 @@ const storeOptions = () => {
     localStorage.setItem(defaultOptions.storageName, JSON.stringify(_.omit(options, dontSave)));
 }
 
-// const storeDisplay = () => {
-//     localStorage.setItem(`${defaultOptions.storageName}_DL`, JSON.stringify(display));
-// }
+const storeWorkspace = () => {
+     localStorage.setItem(`${defaultOptions.storageName}_WS`, JSON.stringify(workspace));
+}
 
 const loadOptions = () => {
     if (!localStorage.getItem(defaultOptions.storageName)) {
@@ -418,15 +458,15 @@ const loadOptions = () => {
     }
 }
 
-// const loadDisplay = () => {
-//     if (!localStorage.getItem(`${defaultOptions.storageName}_DL`)) {
-//         display = _.assignIn({}, _.clone(defaultDisplay));
-//         storeDisplay();
-//     } else {
-//         display = _.assignIn({}, _.clone(defaultDisplay), JSON.parse(localStorage.getItem(`${defaultOptions.storageName}_DL`)));
-
-//     }
-// }
+const loadWorkspace = () => {
+     if (!localStorage.getItem(`${defaultOptions.storageName}_WS`)) {
+         workspace = _.assignIn({}, _.clone(defaultWorkspace));
+         workspace.frames.push(getEmptyFrame());
+         storeWorkspace();
+     } else {
+         workspace = _.assignIn({}, _.clone(defaultWorkspace), JSON.parse(localStorage.getItem(`${defaultOptions.storageName}_WS`)));
+     }
+}
 
 const updateOptions = () => {
     const opts = _.filter($("select, input"), opt => {
@@ -733,6 +773,126 @@ const closeAllDialogs = () => {
     $('div.dialog:visible').slideUp();
 }
 
+const clearFrame = () => {
+    for (let r=0;r<options.spriteHeight;r++) {
+        currentFrame().data0[r] = 0;
+        currentFrame().data1[r] = 0;
+    }
+    drawingEnded();
+}
+
+const copyFrame = () => {
+    workspace.clipBoard = _.cloneDeep(currentFrame());
+}
+
+const pasteFrame = () => {
+    if (workspace.clipBoard) {
+        workspace.frames[workspace.selectedFrame] = _.cloneDeep(workspace.clipBoard);
+    }
+    drawingEnded();
+}
+
+const keyPressed = e => {
+    switch (e.code) {
+        case 'Digit1':
+                colorClicked(1);
+            break;
+        case 'Digit2':
+            colorClicked(2);
+        break;
+        case 'Digit3':
+            colorClicked(3);
+        break;
+        case 'Digit4':
+        case 'Digit0':
+        case 'Backquote':
+            colorClicked(0);
+        break;
+    
+        default:
+            break;
+    }
+    console.log(e.code);
+}
+
+const flip8Bits = (b) => {
+    return reversedBytes[b];
+}
+
+
+const flipHFrame = () => {
+    for (let row=0;row<options.spriteHeight;row++){
+        const b0 = reversedBytes[workspace.frames[workspace.selectedFrame].data0[row]];
+        const b1 = reversedBytes[workspace.frames[workspace.selectedFrame].data1[row]];
+        if (options.spriteGap > 0) {
+            workspace.frames[workspace.selectedFrame].data0[row] = b1;
+            workspace.frames[workspace.selectedFrame].data1[row] = b0;
+            const c = workspace.frames[workspace.selectedFrame].colors[0];
+            workspace.frames[workspace.selectedFrame].colors[0] = workspace.frames[workspace.selectedFrame].colors[1];
+            workspace.frames[workspace.selectedFrame].colors[1] = c;
+            updateColors();
+        } else {
+            workspace.frames[workspace.selectedFrame].data0[row] = b0;
+            workspace.frames[workspace.selectedFrame].data1[row] = b1;
+        }
+   }
+    drawingEnded();
+}
+
+const flipVFrame = () => {
+    let first = 0;
+    let last = options.spriteHeight - 1;
+    while (first<last) {
+        const last0 = workspace.frames[workspace.selectedFrame].data0[last];
+        const last1 = workspace.frames[workspace.selectedFrame].data1[last];
+        workspace.frames[workspace.selectedFrame].data0[last] = workspace.frames[workspace.selectedFrame].data0[first];
+        workspace.frames[workspace.selectedFrame].data1[last] = workspace.frames[workspace.selectedFrame].data1[first];
+        workspace.frames[workspace.selectedFrame].data0[first] = last0;
+        workspace.frames[workspace.selectedFrame].data1[first] = last1;
+        last--;
+        first++;
+    }
+    drawingEnded();
+}
+
+const moveFrameLeft = () => {
+    for (let row=0;row<options.spriteHeight;row++){
+        const b0 = (workspace.frames[workspace.selectedFrame].data0[row] << 1) & 0xff;
+        const b1 = (workspace.frames[workspace.selectedFrame].data1[row] << 1) & 0xff;
+        workspace.frames[workspace.selectedFrame].data0[row] = b0;
+        workspace.frames[workspace.selectedFrame].data1[row] = b1;
+    }
+    drawingEnded();
+}
+
+const moveFrameRight = () => {
+    for (let row=0;row<options.spriteHeight;row++){
+        const b0 = (workspace.frames[workspace.selectedFrame].data0[row] >> 1) & 0xff;
+        const b1 = (workspace.frames[workspace.selectedFrame].data1[row] >> 1) & 0xff;
+        workspace.frames[workspace.selectedFrame].data0[row] = b0;
+        workspace.frames[workspace.selectedFrame].data1[row] = b1;
+    }
+    drawingEnded();
+}
+const moveFrameUp = () => {
+    workspace.frames[workspace.selectedFrame].data0.length = options.spriteHeight;
+    workspace.frames[workspace.selectedFrame].data1.length = options.spriteHeight;
+    workspace.frames[workspace.selectedFrame].data0.shift();
+    workspace.frames[workspace.selectedFrame].data0.push(0);
+    workspace.frames[workspace.selectedFrame].data1.shift();
+    workspace.frames[workspace.selectedFrame].data1.push(0);
+    drawingEnded();
+}
+const moveFrameDown = () => {
+    workspace.frames[workspace.selectedFrame].data0.length = options.spriteHeight;
+    workspace.frames[workspace.selectedFrame].data1.length = options.spriteHeight;
+    workspace.frames[workspace.selectedFrame].data0.unshift(0);
+    workspace.frames[workspace.selectedFrame].data0.pop();
+    workspace.frames[workspace.selectedFrame].data1.unshift(0);
+    workspace.frames[workspace.selectedFrame].data1.pop();
+    drawingEnded();
+}
+
 
 // ************************************************  ON START INIT 
 
@@ -742,16 +902,27 @@ $(document).ready(function () {
     const app = gui(options, dropFile);
     refreshOptions();
     $('title').append(` v.${options.version}`);
-    app.addMenuFileOpen('Load', openFile, 'listmenu', 'Loads Display List binary file');
-    app.addMenuItem('Save', saveFile, 'listmenu', 'Saves Display List as a binary file');
-    app.addMenuItem('Export', toggleExport, 'listmenu', 'Exports Display List to various formats');
-    app.addSeparator('listmenu');
-    // app.addMenuItem('Button', drawEditor, 'listmenu', 'does smth');
-    // app.addSeparator('listmenu');
-    app.addMenuItem('Options', toggleOptions, 'listmenu', 'Shows Options');
-    app.addSeparator('listmenu');
+    app.addMenuFileOpen('Load', openFile, 'appmenu', 'Loads Display List binary file');
+    app.addMenuItem('Save', saveFile, 'appmenu', 'Saves Display List as a binary file');
+    app.addMenuItem('Export', toggleExport, 'appmenu', 'Exports Display List to various formats');
+    app.addSeparator('appmenu');
+    // app.addMenuItem('Button', drawEditor, 'appmenu', 'does smth');
+    // app.addSeparator('appmenu');
+    app.addMenuItem('Options', toggleOptions, 'appmenu', 'Shows Options');
+    app.addSeparator('appmenu');
     const ver = $('<div/>').attr('id','ver').html(`SprEd v.${options.version}`);
-    $('#listmenu').append(ver);
+    $('#appmenu').append(ver);
+
+    app.addMenuItem('Clear', clearFrame, 'framemenu', 'Clears current frame');
+    app.addMenuItem('Copy', copyFrame, 'framemenu', 'Copies from current frame');
+    app.addMenuItem('Paste', pasteFrame, 'framemenu', 'Pastes into current frame');
+    app.addSeparator('framemenu');
+    app.addMenuItem('Flip-H', flipHFrame, 'framemenu', 'Flips frame horizontally');
+    app.addMenuItem('Flip-V', flipVFrame, 'framemenu', 'Flips frame vertically');
+    app.addMenuItem('🡄', moveFrameLeft, 'framemenu', 'Moves frame contents left');
+    app.addMenuItem('🡆', moveFrameRight, 'framemenu', 'Moves frame contents right');
+    app.addMenuItem('🡅', moveFrameUp, 'framemenu', 'Moves frame contents up');
+    app.addMenuItem('🡇', moveFrameDown, 'framemenu', 'Moves frame contents down');
 
     $('.colorbox').bind('mousedown',(e)=> {
         colorClicked(Number(_.last(e.target.id)));
@@ -767,10 +938,11 @@ $(document).ready(function () {
 
     $("#main").bind('mousedown',()=>{$(".palette").remove()})
 
-    clearSprites();
+    loadWorkspace();
     newCanvas();
     drawEditor();
     updateColors();
 
+    document.addEventListener('keydown', keyPressed);
 
 });

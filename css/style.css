@@ -104,7 +104,7 @@ pre {
 .dialog {
     position:absolute;
     display:none;
-    background:rgb(138, 180, 187);
+    background:rgb(187, 167, 138);
     color:#000;
     border-radius:5px;
     box-shadow: 0 0 4px #000;
@@ -135,8 +135,8 @@ pre {
 .dialog_title {
     position:relative;
     width:100%;
-    background:rgb(54, 81, 87);
-    color:rgb(138, 180, 187);
+    background:rgb(87, 75, 54);
+    color:rgb(187, 167, 138);
     text-align: center;
     margin-bottom:5px;
     padding:3px;
@@ -276,7 +276,7 @@ input:disabled {
   height: 14px;
   right:5px;
   top: 4px;
-  background-image: url(../img/palette.png);
+  background-image: url(../img/palette3.png);
   background-size: cover;
 }
 
@@ -301,9 +301,10 @@ input:disabled {
 
 .colorCell {
   width: 16px;
-  height: 16px;
+  height: 8px;
   float: left;
   margin: 0 0 1px 1px;
+  cursor: pointer;
 }
 
 .palette_firstinrow {
