@@ -33,6 +33,8 @@ const gui = (options, dropHandler) => {
 
     $('#save_options').click(saveOptions);
     $('#close_export').click(toggleExport);
+    $('#opt_lastTemplate_i').change(templateChange);
+
 
     $("select, input").filter( (i,o) => { return _.endsWith($(o).attr('id'),'_b')} ).change(()=>{
         updateOptions();

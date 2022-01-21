@@ -1,7 +1,7 @@
 const GRID_COLOR = 'rgba(200,200,200,0.3)';
 const defaultOptions = {
-    version: '0.48',
-    storageName: 'SprEdStore048',
+    version: '0.51',
+    storageName: 'SprEdStore049',
     aspect: 1,
     spriteHeight: 16,
     spriteGap: 0,
@@ -11,7 +11,8 @@ const defaultOptions = {
     animationSpeed: 5,
     palette: 'PAL',
     bytesExport: 'HEX',
-    bytesPerLine: 10
+    bytesPerLine: 10,
+    lastTemplate: 0
 }
 let options = {};
 const dontSave = ['version', 'storageName'];
@@ -85,13 +86,12 @@ const userIntParse = (udata) => {
 
 const getEmptyFrame = () => {
     const frame = {
-        data0: [],
-        data1: [],
+        data: [[],[]],
         colors: [0x24, 0xc8]
     }
     for (let r=0;r<options.spriteHeight;r++) {
-        frame.data0[r] = 0;
-        frame.data1[r] = 0;
+        frame.data[0][r] = 0;
+        frame.data[1][r] = 0;
     }
     return frame;
 }
@@ -164,10 +164,9 @@ const currentFrame = () => {
     return  workspace.frames[workspace.selectedFrame];
 };
 
-
 const getColorOn = (frame,col,row) => {
-    const b0 = workspace.frames[frame].data0[row];
-    const b1 = workspace.frames[frame].data1[row];
+    const b0 = workspace.frames[frame].data[0][row];
+    const b1 = workspace.frames[frame].data[1][row];
     const m0 = 0b10000000 >> col;
     const m1offset = col - options.spriteGap;
     const m1 = m1offset<0?0:0b10000000 >> m1offset;
@@ -185,16 +184,16 @@ const setColorOn = (col,row,color) => {
         const m1offset = col - options.spriteGap;
         const m1 = m1offset<0?0:0b10000000 >> m1offset;
         if (m0) {
-            currentFrame().data0[row] = currentFrame().data0[row] & (~m0 & 0xff) 
+            currentFrame().data[0][row] = currentFrame().data[0][row] & (~m0 & 0xff) 
             if (c0) {
-                currentFrame().data0[row] = currentFrame().data0[row] | m0
+                currentFrame().data[0][row] = currentFrame().data[0][row] | m0
                 c |= c0;
             }
         }
         if (m1) {
-            currentFrame().data1[row] = currentFrame().data1[row] & (~m1 & 0xff) 
+            currentFrame().data[1][row] = currentFrame().data[1][row] & (~m1 & 0xff) 
             if (c1) {
-                currentFrame().data1[row] = currentFrame().data1[row] | m1
+                currentFrame().data[1][row] = currentFrame().data[1][row] | m1
                 c |= c1;
             }
         }
@@ -381,11 +380,11 @@ const getFrameImage = (frame, scalex, scaley) => {
 }
 
 const clearSprites = () => {
-    sprite.data0 = [];
-    sprite.data1 = [];
+    sprite.data[0] = [];
+    sprite.data[1] = [];
     for (let i=0; i<options.spriteHeight; i++) {
-        sprite.data0[i] = 0; 
-        sprite.data1[i] = 0; 
+        sprite.data[0][i] = 0; 
+        sprite.data[1][i] = 0; 
     }
 }
 
@@ -538,7 +537,6 @@ const drawGridLine = (x1,y1,x2,y2) => {
     editor.stroke();
 };
 
-
 const drawGrid = () => {
     for (let row=1;row<options.spriteHeight;row++) {
         const y = (editorWindow.cyoffset * row) - options.showGrid;
@@ -549,8 +547,6 @@ const drawGrid = () => {
         drawGridLine(x,0,x,editorWindow.sheight);
     }
 }
-
-
 
 // *********************************** OPTIONS
 
@@ -700,20 +696,19 @@ const toggleExport = () => {
 
 const exportData = () => {
     const template = exportTemplates[$('#opt_lastTemplate_i').val()];
-    // const {error, warnings} = parseAndValidate(template);
-    // if (error) {
-    //     $('#export_frame').html(warnings.replace(/<br>/g,"\n"));
-    //     return null;
-    // }
-    // const body = parseTemplate(template);
-    // $('#export_frame').html(body);
+
+    //try {
+        const body = parseTemplate(template);
+        $('#export_frame').html(body);
+        
+    //} catch (error) {
+//        $('#export_frame').html('Error parsing template');
+//        console.log(error);
+    //}
+    
 }
 
-const parseTemplateVars = (template, size) => {
-    return template
-        .replace(/#size#/g, size)
-        .replace(/#max#/g, size - 1);
-}
+
 
 const parseTemplate = (template) => {
    
@@ -722,86 +717,97 @@ const parseTemplate = (template) => {
     let byteInRow = 0;
     let lineCount = 0;
     let lineBody = '';
-    const pushLine = line => {
-        const num = (template.line.numbers) ? `${template.line.numbers.start + template.line.numbers.step * lineCount} `:'';
-        templateLines += `${num}${template.line.prefix}${line}${listByte == display.bytecode.length? template.line.lastpostfix || template.line.postfix : template.line.postfix}`;
-        lineCount++;
+    let tframe = 0;
+    let tsprite = 0;
+    let lines = '';
+
+    const formatByte = b => {
+        if (options.bytesExport == 'HEX') {
+            return `${template.byte.hexPrefix}${decimalToHex(userIntParse(b))}`;
+        } else {
+            return b;
+        }
     }
-    const stepByte = () => {
+
+    const parseTemplateVars = (template) => {
+        return template
+        .replace(/#height#/g, formatByte(options.spriteHeight))
+        .replace(/#gap#/g, formatByte(options.spriteGap))
+        .replace(/#frames#/g, formatByte(workspace.frames.length))
+        .replace(/#maxheight#/g, formatByte(options.spriteHeight-1))
+        .replace(/#maxframes#/g, formatByte(workspace.frames.length-1));
+            
+    }
+
+    const getBlock = (block, blockTemp) => {
+        let blockLines = `${blockTemp.prefix}${block}${blockTemp.postfix}`;
+        blockLines = blockLines.replace(/#f#/g, tframe).replace(/#s#/g, tsprite);
+        lineCount+= blockLines.split(/\r\n|\r|\n/).length + 1;
+        return blockLines
+    }
+
+    const pushBlock = (block, blockTemp) => {
+        templateLines += getBlock(block, blockTemp);
+    }    
+    
+    const pushLine = (line, last) => {
+        const num = (template.line.numbers) ? `${template.line.numbers.start + template.line.numbers.step * lineCount} `:'';
+        lineCount++;
+        lines += `${num}${template.line.prefix}${line}${last?template.line.lastpostfix || template.line.postfix:template.line.postfix}`;
+        byteInRow = 0;
+        lineBody = '';
+    }
+
+    const stepByte = (last) => {
         byteInRow++;
-        if (byteInRow == options.bytesPerLine || listByte == display.bytecode.length) {
+        if (byteInRow == options.bytesPerLine || last) {
             byteInRow = 0;
-            pushLine(lineBody);
+            pushLine(lineBody, last);
             lineBody = '';
         } else lineBody += template.byte.separator;
     }
-    const pushByte = b => {
-        if (options.bytesExport == 'HEX') {
-            lineBody += `${template.byte.hexPrefix}${decimalToHex(userIntParse(b))}`;
-        } else {
-            lineBody += b;
-        }
-        stepByte();
-    }
-    const pushAddress = a => {
-        let addr = isDecOrHexInteger(a) ? userIntParse(a) : a;
-        if (options.bytesExport == 'HEX' && isDecOrHexInteger(addr)) {
-            addr = `${template.byte.hexPrefix}${decimalToHex(userIntParse(a),4)}`;
-        }
-        lineBody += `${template.byte.addrPrefix}${addr}${template.byte.addrPostfix}`
-        stepByte();
+    const pushByte = (b, last) => {
+        lineBody += formatByte(b);
+        stepByte(last);
     }
 
-    while (listByte<display.bytecode.length) {
-        let cbyte = display.bytecode[listByte++];
-        if (cbyte == '#') {
-            let caddr = display.bytecode[listByte];
-            if (template.byte.forceNumeric) {
-                let address = Number(userIntParse(caddr));
-                pushByte(address & 0xFF);
-                listByte++;
-                pushByte((address & 0xFF00)>>8);
-            } else {
-                listByte++;
-                pushAddress(caddr);
-            }
-        } else {
-            pushByte(cbyte);
+    const pushSpriteColors = s => {
+        lines = '';
+        tsprite = s;
+        pushArray(_.map(workspace.frames,f=>f.colors[s]));
+        pushBlock(lines, template.colors);
+    }
+
+    const pushArray = a => {
+        _.each(a,(v,i) => {pushByte(v & 0xFF, i==a.length-1)});
+        if (byteInRow > 0) {
+            pushLine(lineBody, true);
         }
     }
 
-    if (byteInRow > 0) pushLine(lineBody);
+    const pushSpriteData = s => {
+        let sprite = '';
+        tsprite = s;
+        _.each(workspace.frames, (frame,f) => {
+            lines = '';
+            tframe = f;
+            pushArray(frame.data[s])
+            sprite += getBlock(lines, template.frame);
+        });   
+        pushBlock(sprite, template.sprite);
+    }
 
-    return parseTemplateVars(`${template.block.prefix}${templateLines}${template.block.postfix}`, display.bytecode.length);
+    pushSpriteColors(0);
+    pushSpriteColors(1);
+    pushSpriteData(0);
+    pushSpriteData(1);
+
+    return parseTemplateVars(`${template.block.prefix}${templateLines}${template.block.postfix}`);
 }
 
 const saveFile = () => {
-    bintmp = {
-        name:'Binary Export',
-        block: {
-            prefix: '', postfix: ''
-        },
-        line: {
-            numbers: false,
-            prefix: '', postfix: ','
-        },
-        byte: {
-            forceNumeric: true, separator: ',',
-            hexPrefix: '$'
-        }
-    };
-    const {error, warnings} = parseAndValidate(bintmp);
-    if (error) {
-        alert(warnings.replace('<br>',''));
-        return null;
-    }
 
-    if (display.bytecode.length == 0) {
-        alert('Saving empty file is pointless...');
-        return null;
-    }
-
-    const name = prompt('set filename of saved file:', 'display_list.bin');
+    const name = prompt('set filename of saved file:', 'mysprites.spr');
 
     let binList = [];
     let listByte = 0;
@@ -953,8 +959,8 @@ const closeAllDialogs = () => {
 const clearFrame = () => {
     if (player) { return false };
     for (let r=0;r<options.spriteHeight;r++) {
-        currentFrame().data0[r] = 0;
-        currentFrame().data1[r] = 0;
+        currentFrame().data[0][r] = 0;
+        currentFrame().data[1][r] = 0;
     }
     drawingEnded();
 }
@@ -1005,6 +1011,9 @@ const keyPressed = e => {
                 jumpToPrevFrame();
             }
         break;
+        case 'Escape':
+            closeAllDialogs();
+        break;
 
         default:
             break;
@@ -1020,18 +1029,18 @@ const flip8Bits = (b) => {
 const flipHFrame = () => {
     if (player) { return false };
     for (let row=0;row<options.spriteHeight;row++){
-        const b0 = reversedBytes[workspace.frames[workspace.selectedFrame].data0[row]];
-        const b1 = reversedBytes[workspace.frames[workspace.selectedFrame].data1[row]];
+        const b0 = reversedBytes[workspace.frames[workspace.selectedFrame].data[0][row]];
+        const b1 = reversedBytes[workspace.frames[workspace.selectedFrame].data[1][row]];
         if (options.spriteGap > 0) {
-            workspace.frames[workspace.selectedFrame].data0[row] = b1;
-            workspace.frames[workspace.selectedFrame].data1[row] = b0;
+            workspace.frames[workspace.selectedFrame].data[0][row] = b1;
+            workspace.frames[workspace.selectedFrame].data[1][row] = b0;
             const c = workspace.frames[workspace.selectedFrame].colors[0];
             workspace.frames[workspace.selectedFrame].colors[0] = workspace.frames[workspace.selectedFrame].colors[1];
             workspace.frames[workspace.selectedFrame].colors[1] = c;
             updateColors();
         } else {
-            workspace.frames[workspace.selectedFrame].data0[row] = b0;
-            workspace.frames[workspace.selectedFrame].data1[row] = b1;
+            workspace.frames[workspace.selectedFrame].data[0][row] = b0;
+            workspace.frames[workspace.selectedFrame].data[1][row] = b1;
         }
    }
     drawingEnded();
@@ -1042,12 +1051,12 @@ const flipVFrame = () => {
     let first = 0;
     let last = options.spriteHeight - 1;
     while (first<last) {
-        const last0 = workspace.frames[workspace.selectedFrame].data0[last];
-        const last1 = workspace.frames[workspace.selectedFrame].data1[last];
-        workspace.frames[workspace.selectedFrame].data0[last] = workspace.frames[workspace.selectedFrame].data0[first];
-        workspace.frames[workspace.selectedFrame].data1[last] = workspace.frames[workspace.selectedFrame].data1[first];
-        workspace.frames[workspace.selectedFrame].data0[first] = last0;
-        workspace.frames[workspace.selectedFrame].data1[first] = last1;
+        const last0 = workspace.frames[workspace.selectedFrame].data[0][last];
+        const last1 = workspace.frames[workspace.selectedFrame].data[1][last];
+        workspace.frames[workspace.selectedFrame].data[0][last] = workspace.frames[workspace.selectedFrame].data[0][first];
+        workspace.frames[workspace.selectedFrame].data[1][last] = workspace.frames[workspace.selectedFrame].data[1][first];
+        workspace.frames[workspace.selectedFrame].data[0][first] = last0;
+        workspace.frames[workspace.selectedFrame].data[1][first] = last1;
         last--;
         first++;
     }
@@ -1057,10 +1066,10 @@ const flipVFrame = () => {
 const moveFrameLeft = () => {
     if (player) { return false };
     for (let row=0;row<options.spriteHeight;row++){
-        const b0 = (workspace.frames[workspace.selectedFrame].data0[row] << 1) & 0xff;
-        const b1 = (workspace.frames[workspace.selectedFrame].data1[row] << 1) & 0xff;
-        workspace.frames[workspace.selectedFrame].data0[row] = b0;
-        workspace.frames[workspace.selectedFrame].data1[row] = b1;
+        const b0 = (workspace.frames[workspace.selectedFrame].data[0][row] << 1) & 0xff;
+        const b1 = (workspace.frames[workspace.selectedFrame].data[1][row] << 1) & 0xff;
+        workspace.frames[workspace.selectedFrame].data[0][row] = b0;
+        workspace.frames[workspace.selectedFrame].data[1][row] = b1;
     }
     drawingEnded();
 }
@@ -1068,31 +1077,31 @@ const moveFrameLeft = () => {
 const moveFrameRight = () => {
     if (player) { return false };
     for (let row=0;row<options.spriteHeight;row++){
-        const b0 = (workspace.frames[workspace.selectedFrame].data0[row] >> 1) & 0xff;
-        const b1 = (workspace.frames[workspace.selectedFrame].data1[row] >> 1) & 0xff;
-        workspace.frames[workspace.selectedFrame].data0[row] = b0;
-        workspace.frames[workspace.selectedFrame].data1[row] = b1;
+        const b0 = (workspace.frames[workspace.selectedFrame].data[0][row] >> 1) & 0xff;
+        const b1 = (workspace.frames[workspace.selectedFrame].data[1][row] >> 1) & 0xff;
+        workspace.frames[workspace.selectedFrame].data[0][row] = b0;
+        workspace.frames[workspace.selectedFrame].data[1][row] = b1;
     }
     drawingEnded();
 }
 const moveFrameUp = () => {
     if (player) { return false };
-    workspace.frames[workspace.selectedFrame].data0.length = options.spriteHeight;
-    workspace.frames[workspace.selectedFrame].data1.length = options.spriteHeight;
-    const b0 = workspace.frames[workspace.selectedFrame].data0.shift();
-    const b1 = workspace.frames[workspace.selectedFrame].data1.shift();
-    workspace.frames[workspace.selectedFrame].data0.push(options.wrapEditor?b0:0);
-    workspace.frames[workspace.selectedFrame].data1.push(options.wrapEditor?b1:0);
+    workspace.frames[workspace.selectedFrame].data[0].length = options.spriteHeight;
+    workspace.frames[workspace.selectedFrame].data[1].length = options.spriteHeight;
+    const b0 = workspace.frames[workspace.selectedFrame].data[0].shift();
+    const b1 = workspace.frames[workspace.selectedFrame].data[1].shift();
+    workspace.frames[workspace.selectedFrame].data[0].push(options.wrapEditor?b0:0);
+    workspace.frames[workspace.selectedFrame].data[1].push(options.wrapEditor?b1:0);
     drawingEnded();
 }
 const moveFrameDown = () => {
     if (player) { return false };
-    workspace.frames[workspace.selectedFrame].data0.length = options.spriteHeight;
-    workspace.frames[workspace.selectedFrame].data1.length = options.spriteHeight;
-    const b0 = workspace.frames[workspace.selectedFrame].data0.pop();
-    const b1 = workspace.frames[workspace.selectedFrame].data1.pop();
-    workspace.frames[workspace.selectedFrame].data0.unshift(options.wrapEditor?b0:0);
-    workspace.frames[workspace.selectedFrame].data1.unshift(options.wrapEditor?b1:0);
+    workspace.frames[workspace.selectedFrame].data[0].length = options.spriteHeight;
+    workspace.frames[workspace.selectedFrame].data[1].length = options.spriteHeight;
+    const b0 = workspace.frames[workspace.selectedFrame].data[0].pop();
+    const b1 = workspace.frames[workspace.selectedFrame].data[1].pop();
+    workspace.frames[workspace.selectedFrame].data[0].unshift(options.wrapEditor?b0:0);
+    workspace.frames[workspace.selectedFrame].data[1].unshift(options.wrapEditor?b1:0);
     drawingEnded();
 }
 
@@ -1137,8 +1146,8 @@ $(document).ready(function () {
     app.addMenuItem('Clone', cloneFrame, 'timemenu', 'Adds copy of frame');
     app.addMenuItem('Delete', delFrame, 'timemenu', 'Deletes current frame');
     app.addSeparator('timemenu');
-    app.addMenuItem('🡄', animFrameLeft, 'timemenu', 'move current frame left');
-    app.addMenuItem('🡆', animFrameRight, 'timemenu', 'move current frame right');
+    app.addMenuItem('🡄', animFrameLeft, 'timemenu', 'Moves current frame left');
+    app.addMenuItem('🡆', animFrameRight, 'timemenu', 'Moves current frame right');
     
 
     $('.colorbox').bind('mousedown',(e)=> {
