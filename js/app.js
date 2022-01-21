@@ -435,6 +435,17 @@ const jumpToNextFrame = () => {
     updateColors();
 }
 
+const jumpToPrevFrame = () => {
+    workspace.selectedFrame--;
+    if (workspace.selectedFrame < 0) {
+        workspace.selectedFrame = workspace.frames.length - 1;    
+    }
+    drawTimeline();
+    drawingEnded();
+    updateColors();
+}
+
+
 const startPlayer = () => {
     if ((player == 0) && !playerInterval) {
         player = 1;
@@ -449,18 +460,39 @@ const stopPlayer = () => {
 }
 
 const cloneFrame = () => {
+    if (player) { return false };    
     const newframe = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
     workspace.frames.splice(workspace.selectedFrame,0,newframe);
     jumpToFrame(workspace.selectedFrame+1);
 }
 
+const animFrameLeft = () => {
+    if (player) { return false };    
+    if (workspace.selectedFrame == 0) {return false}
+    const newframe = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
+    workspace.frames.splice(workspace.selectedFrame,1);
+    workspace.frames.splice(workspace.selectedFrame-1,0,newframe);
+    jumpToFrame(workspace.selectedFrame-1);
+}
+
+const animFrameRight = () => {
+    if (player) { return false };    
+    if (workspace.selectedFrame == workspace.frames.length-1) {return false}
+    const newframe = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
+    workspace.frames.splice(workspace.selectedFrame,1);
+    workspace.frames.splice(workspace.selectedFrame+1,0,newframe);
+    jumpToFrame(workspace.selectedFrame+1);
+}
+
 const addFrame = () => {
+    if (player) { return false };    
     const newframe = getEmptyFrame();
     workspace.frames.splice(workspace.selectedFrame+1,0,newframe);
     jumpToFrame(workspace.selectedFrame+1);
 }
 
 const delFrame = () => {
+    if (player) { return false };    
     if (workspace.frames.length>1) {
         workspace.frames.splice(workspace.selectedFrame,1);
         if (!workspace.frames[workspace.selectedFrame]) {
@@ -484,7 +516,7 @@ const drawTimeline = () => {
         const framebox = $("<div/>")
         .addClass('framebox')
         .attr('id',`fbox_${f}`)
-        .append(`<div>frame:${f}</div>`)
+        .append(`<div>$${decimalToHex(f)}</div>`)
         .bind('mousedown',frameboxClicked)
         .append(cnv)
 
@@ -541,18 +573,34 @@ const refreshOptions = () => {
 }
 
 const valIntInput = (inputId) => {
-    uint = userIntParse($(`#${inputId}`).val());
+    const idiv = $(`#opt_${inputId}_i`);
+    const uint = userIntParse(idiv.val());
     if (_.isNaN(uint)) {
-        $(`#${inputId}`).addClass('warn').focus();
+        idiv.addClass('warn').focus();
         return false;
     };
-    $(`#${inputId}`).val(uint);
+    idiv.val(uint);
     return true;
+}
+
+const clampOption = (inputId,min,max) => {
+    const idiv = $(`#opt_${inputId}_i`);
+    const uint = userIntParse(idiv.val());
+    idiv.val(uint.clamp(min,max));
 }
 
 const validateOptions = () => {
     $('.dialog_text_input').removeClass('warn');
-    //if (!valIntInput('bytes_per_line')) return false;
+    if (!valIntInput('bytesPerLine')) return false;
+    if (!valIntInput('spriteHeight')) return false;
+    if (!valIntInput('spriteGap')) return false;
+    if (!valIntInput('animationSpeed')) return false;
+
+    clampOption('bytesPerLine',1,100000);
+    clampOption('spriteHeight',1,128);
+    clampOption('spriteGap',0,8);
+    clampOption('animationSpeed',1,100);
+    
     return true;
 }
 
@@ -628,6 +676,7 @@ const saveOptions = () => {
         stopPlayer();
         startPlayer();
     }
+    drawTimeline();
 }
 
 
@@ -929,17 +978,34 @@ const keyPressed = e => {
                 colorClicked(1);
             break;
         case 'Digit2':
-            colorClicked(2);
+                colorClicked(2);
         break;
         case 'Digit3':
-            colorClicked(3);
+                colorClicked(3);
         break;
         case 'Digit4':
         case 'Digit0':
         case 'Backquote':
-            colorClicked(0);
+                colorClicked(0);
         break;
-    
+        case 'Space':
+            if (player) {
+                stopPlayer();
+            } else {
+                startPlayer();
+            }
+        break;
+        case 'ArrowRight': 
+            if (!player) {
+                jumpToNextFrame();
+            }
+        break;
+        case 'ArrowLeft': 
+            if (!player) {
+                jumpToPrevFrame();
+            }
+        break;
+
         default:
             break;
     }
@@ -1056,19 +1122,23 @@ $(document).ready(function () {
     app.addSeparator('framemenu');
     app.addMenuItem('Flip-H', flipHFrame, 'framemenu', 'Flips frame horizontally');
     app.addMenuItem('Flip-V', flipVFrame, 'framemenu', 'Flips frame vertically');
+    app.addSeparator('framemenu');
     app.addMenuItem('🡄', moveFrameLeft, 'framemenu', 'Moves frame contents left');
     app.addMenuItem('🡆', moveFrameRight, 'framemenu', 'Moves frame contents right');
     app.addMenuItem('🡅', moveFrameUp, 'framemenu', 'Moves frame contents up');
     app.addMenuItem('🡇', moveFrameDown, 'framemenu', 'Moves frame contents down');
 
-    app.addMenuItem('⏵︎', startPlayer, 'timemenu', 'Adds new empty frame');
-    app.addMenuItem('⏹︎', stopPlayer, 'timemenu', 'Adds new empty frame');
+    app.addMenuItem('⏵︎', startPlayer, 'timemenu', 'Starts Animation [Space]');
+    app.addMenuItem('⏹︎', stopPlayer, 'timemenu', 'Stops Animation [Space]');
     // app.addMenuItem('-', null, 'timemenu', 'Adds new empty frame');
     // app.addMenuItem('+', null, 'timemenu', 'Adds new empty frame');
     app.addSeparator('timemenu');
-    app.addMenuItem('Add Frame', addFrame, 'timemenu', 'Adds new empty frame');
-    app.addMenuItem('Clone Frame', cloneFrame, 'timemenu', 'Adds copy of frame');
-    app.addMenuItem('Remove Frame', delFrame, 'timemenu', 'Deletes current frame');
+    app.addMenuItem('Add', addFrame, 'timemenu', 'Adds new empty frame');
+    app.addMenuItem('Clone', cloneFrame, 'timemenu', 'Adds copy of frame');
+    app.addMenuItem('Delete', delFrame, 'timemenu', 'Deletes current frame');
+    app.addSeparator('timemenu');
+    app.addMenuItem('🡄', animFrameLeft, 'timemenu', 'move current frame left');
+    app.addMenuItem('🡆', animFrameRight, 'timemenu', 'move current frame right');
     
 
     $('.colorbox').bind('mousedown',(e)=> {

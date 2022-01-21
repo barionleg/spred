@@ -326,16 +326,24 @@ input:disabled {
   border: 1px solid black;
 }
 
+#timeline {
+  border-top: 1px dotted #666;
+  clear: both;
+  float:left;
+  margin-top: 6px;
+}
+
 #framelist {
   clear: both;
   float:left;
   background-color:rgb(83, 59, 43);
   min-height: 10px;  
   width: 100%;
-  margin:8px 0;
+  margin:4px 0 6px 0;
   overflow-x: auto;
   overflow-y: hidden;
   white-space: nowrap;
+  padding:2px 0 0 2px;
 }
 
 .framebox {
@@ -369,4 +377,8 @@ input:disabled {
 
 .currentFrame>canvas {
   border: 1px solid white;
+}
+
+.warn {
+  background-color: rgb(243, 191, 174);
 }
