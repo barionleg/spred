@@ -1,13 +1,13 @@
 const GRID_COLOR = 'rgba(200,200,200,0.3)';
 const MAX_FILESIZE = 64 * 1024;
 const defaultOptions = {
-    version: '0.68',
-    storageName: 'SprEdStore068',
+    version: '0.73',
+    storageName: 'SprEdStore073',
     aspect: 1,
     spriteHeight: 16,
     spriteGap: 0,
     showGrid: 1,
-    cellSize: 16,
+    cellSize: 24,
     wrapEditor: 1,
     animationSpeed: 5,
     palette: 'PAL',
@@ -602,6 +602,7 @@ const validateOptions = () => {
 }
 
 const toggleOptions = () => {
+    closeAllDialogs();
     if ($('#options_dialog').is(':visible')) {
         $('#options_dialog').slideUp();
     } else {
@@ -609,6 +610,16 @@ const toggleOptions = () => {
         $('#options_dialog').slideDown();
     }
 }
+
+const toggleHelp = () => {
+    closeAllDialogs();
+    if ($('#help_dialog').is(':visible')) {
+        $('#help_dialog').slideUp();
+    } else {
+        $('#help_dialog').slideDown();
+    }
+}
+
 
 const storeOptions = () => {
     localStorage.setItem(defaultOptions.storageName, JSON.stringify(_.omit(options, dontSave)));
@@ -686,6 +697,7 @@ const templateChange = () => {
 }
 
 const toggleExport = () => {
+    closeAllDialogs();
     if ($('#export_dialog').is(':visible')) {
         $('#export_dialog').slideUp();
     } else {
@@ -993,6 +1005,11 @@ const keyPressed = e => {
         case 'Escape':
             closeAllDialogs();
         break;
+        case 'Enter':
+            if ($('#options_dialog').is(':visible')) {
+                saveOptions();
+            }
+        break;
 
         default:
             break;
@@ -1084,6 +1101,28 @@ const moveFrameDown = () => {
     drawingEnded();
 }
 
+const heightDown = () => {
+    if (player) { return false };
+    const s0 = workspace.frames[workspace.selectedFrame].data[0]
+    const s1 = workspace.frames[workspace.selectedFrame].data[1]
+    workspace.frames[workspace.selectedFrame].data[0] = _.filter(s0,(v,k)=>(k%2==0));
+    workspace.frames[workspace.selectedFrame].data[1] = _.filter(s1,(v,k)=>(k%2==0));
+    drawingEnded();
+}
+
+const heightUp = () => {
+    if (player) { return false };
+    
+    const s0 = workspace.frames[workspace.selectedFrame].data[0]
+    const s1 = workspace.frames[workspace.selectedFrame].data[1]
+    workspace.frames[workspace.selectedFrame].data[0] = _.flatMap(s0,v=>[v,v]);
+    workspace.frames[workspace.selectedFrame].data[1] = _.flatMap(s1,v=>[v,v]);
+    drawingEnded();
+    drawTimeline();
+}
+
+
+
 
 // ************************************************  ON START INIT 
 
@@ -1101,6 +1140,8 @@ $(document).ready(function () {
     // app.addSeparator('appmenu');
     app.addMenuItem('Options', toggleOptions, 'appmenu', 'Shows Options');
     app.addSeparator('appmenu');
+    app.addMenuItem('Help', toggleHelp, 'appmenu', 'Shows Help');
+    app.addSeparator('appmenu');
     const ver = $('<div/>').attr('id','ver').html(`SprEd v.${options.version}`);
     $('#appmenu').append(ver);
 
@@ -1115,6 +1156,11 @@ $(document).ready(function () {
     app.addMenuItem('🡆', moveFrameRight, 'framemenu', 'Moves frame contents right');
     app.addMenuItem('🡅', moveFrameUp, 'framemenu', 'Moves frame contents up');
     app.addMenuItem('🡇', moveFrameDown, 'framemenu', 'Moves frame contents down');
+    app.addSeparator('framemenu');
+    app.addMenuItem('➕', heightUp, 'framemenu', 'Double lines');
+    app.addMenuItem('➖', heightDown, 'framemenu', 'Remove every second line');
+
+    
 
     app.addMenuItem('⏵︎', startPlayer, 'timemenu', 'Starts Animation [Space]');
     app.addMenuItem('⏹︎', stopPlayer, 'timemenu', 'Stops Animation [Space]');
