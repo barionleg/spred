@@ -1,7 +1,8 @@
 const GRID_COLOR = 'rgba(200,200,200,0.3)';
+const MAX_FILESIZE = 64 * 1024;
 const defaultOptions = {
-    version: '0.51',
-    storageName: 'SprEdStore049',
+    version: '0.68',
+    storageName: 'SprEdStore068',
     aspect: 1,
     spriteHeight: 16,
     spriteGap: 0,
@@ -406,12 +407,12 @@ const drawEditor = () => {
     }
 
     $("#framepreview").empty();
-    $("#framepreview").append(getFrameImage(workspace.selectedFrame,2,2));
-    $("#framepreview").append(getFrameImage(workspace.selectedFrame,4,2));
-    $("#framepreview").append(getFrameImage(workspace.selectedFrame,8,2).addClass('clear_left'));
+    $("#framepreview").append(getFrameImage(workspace.selectedFrame,2,2/options.aspect));
+    $("#framepreview").append(getFrameImage(workspace.selectedFrame,4,2/options.aspect));
+    $("#framepreview").append(getFrameImage(workspace.selectedFrame,8,2/options.aspect).addClass('clear_left'));
 
     $(`#fbox_${workspace.selectedFrame}`).children().last().remove();
-    $(`#fbox_${workspace.selectedFrame}`).append(getFrameImage(workspace.selectedFrame,3,3));
+    $(`#fbox_${workspace.selectedFrame}`).append(getFrameImage(workspace.selectedFrame,4,4/options.aspect));
 
 }
 
@@ -511,7 +512,7 @@ const frameboxClicked = e => {
 const drawTimeline = () => {
     $('#framelist').empty();
     _.each(workspace.frames, (frame,f) => {
-        const cnv = getFrameImage(f,3,3)
+        const cnv = getFrameImage(f,4,4/options.aspect)
         const framebox = $("<div/>")
         .addClass('framebox')
         .attr('id',`fbox_${f}`)
@@ -713,7 +714,6 @@ const exportData = () => {
 const parseTemplate = (template) => {
    
     let templateLines = '';
-    let listByte = 0;
     let byteInRow = 0;
     let lineCount = 0;
     let lineBody = '';
@@ -843,91 +843,67 @@ const openFile = function (event) {
 
 const parseBinary = (binData) => {
 
+    const aplHeader = [0x9a,0xf8,0x39,0x21];
+
+    console.log(binData);
+
     const parseError = msg => {
         alert(msg);
     }
-    const list = [];
+
+    const areEqual = (a1,a2) => {
+        if (a1.length != a2.length) {
+            return false;
+        }
+        for (let i=0;i<a1.length;i++) {
+            if (a1[i] != a2[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     const binSize = binData.length;
     let binPtr = 0;
     let id = 0;
-    while(binPtr < binSize) {
-        let newRow = true;
-        const opcode = binData[binPtr++];
-        const remains = binSize - binPtr;
-        const row = {
-            hex: decimalToHex(opcode),
-            opcode: opcode,
-            antic: opcode,
-            DLI: opcode & 128,
-            id: id,
-            address: null
-        };
-        if (isJump(row)) {
-            row.mode = getModeFromAntic(opcode & 0x41);
-        }
-        if (isBlank(row)) {
-            row.mode = getModeFromAntic(opcode & 0x70);
-        }
-        if (isScreenLine(row)) {
-            row.LMS = opcode & 64;
-            row.vscroll = opcode & 32;
-            row.hscroll = opcode & 16;
-            row.mode = getModeFromAntic(opcode & 0x0f);
-        }
-        if (!row.mode) {
-            parseError(`Parsing error. Unknown mode: ${opcode}`);
-            return false;
-        }
-        _.assignIn(row, DLmodes[row.mode]);
+    
+    if (areEqual(aplHeader,binData.subarray(0,4))) { // PARSE APL 
+        const wrkspc = _.cloneDeep(defaultWorkspace);
 
-        if (needsAddress(row)) {
-            if (remains < 2) {
-                parseError('Parsing error. File ended on expected address');
-                return false;
+        binPtr = 4;
+        const aplFrames = binData[binPtr++];
+        options.spriteHeight = binData[binPtr++];
+        options.spriteGap = binData[binPtr++];
+        for(let f=0;f<17;f++) {
+            const frame = {
+                data: [[],[]],
+                colors: [binData[binPtr++]]
             }
-            const lbyte = binData[binPtr++];
-            const hbyte = binData[binPtr++];
-            row.address = (hbyte * 256) + lbyte;
-            if (options.bytesExport == 'HEX') row.address = `$${decimalToHex(row.address)}`;
+            wrkspc.frames.push(frame);
         }
-        row.count = 1;
-        row.step = '0';
-
-        if (list.length > 0) {                     
-            const last = _.last(list);
-
-            // check for repeats
-            if (last.opcode == row.opcode) {
-                if (last.address == row.address) {
-                    last.count++;
-                    newRow = false;
-                } else {
-                    let laststep = Number(last.step) * last.count;
-                    let curstep = userIntParse(row.address) - userIntParse(last.address);
-                    if (laststep == 0) {
-                        last.count++;
-                        last.step = curstep;
-                        newRow = false;
-                    } else {
-                        if (laststep == curstep) {
-                            last.count++;
-                            newRow = false;
-                        }
-                    }
-                }
-            }
-        } 
-        
-        if (newRow) {
-            list.push(updateModeParams(row));
-            id++;
+        for(let f=0;f<17;f++) {
+            wrkspc.frames[f].colors.push(binData[binPtr++]);
         }
-
-        if (options.stopAtJump && isJump(row)) {
-            binPtr = binSize;
+        wrkspc.backgroundColor = binData[binPtr++];
+        for(let f=0;f<17;f++) {
+            wrkspc.frames[f].data[0] = binData.subarray(binPtr,binPtr+48);
+            binPtr += 48;
         }
+        for(let f=0;f<17;f++) {
+            wrkspc.frames[f].data[1] = binData.subarray(binPtr,binPtr+48);
+            binPtr += 48;
+        }
+        wrkspc.selectedFrame = binData[binPtr++];
+        wrkspc.selectedColor = binData[binPtr++];
+        options.animationSpeed = binData[binPtr++];
+        options.palette = (binData[binPtr++]==1)?'NTSC':'PAL';
+        wrkspc.frames.length = aplFrames;
+        return wrkspc;
+
+    } else {
+        parseError('unknown format!')
+        return false;
     }
-    return list;
 }
 
 const dropFile = function (file) {
@@ -935,17 +911,20 @@ const dropFile = function (file) {
         var reader = new FileReader();
         reader.onload = function () {
             var arrayBuffer = reader.result;
-            if (file.size > (options.fileSizeLimit * 1024)) {
-                alert(`ERROR!!!\n\nFile size limit exceeded. Size: ${file.size} B - limit: ${options.fileSizeLimit} kB`);
+            if (file.size > MAX_FILESIZE) {
+                alert(`ERROR!!!\n\nFile size limit exceeded. Size: ${file.size} B - limit: ${MAX_FILESIZE} kB`);
                 return false;
             }
             const binFileName = file.name;
             const binFileData = new Uint8Array(arrayBuffer);
-            newList = parseBinary(binFileData);
-            if (newList) {
-                display.list = newList;
-                redrawList();
-                updateListStatus();
+            newWorkspace = parseBinary(binFileData);
+            if (newWorkspace) {
+                newCanvas();
+                workspace = newWorkspace;
+                updateColors();
+                storeOptions();
+                drawTimeline();
+                drawingEnded();
             }
         };
         reader.readAsArrayBuffer(file);

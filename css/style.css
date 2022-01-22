@@ -6,6 +6,7 @@
 }
 
 body {
+  position: relative;
   background-color: rgb(70, 47, 33);
   color:rgb(164, 190, 224);
   font-family: Arial, sans-serif;
@@ -16,7 +17,7 @@ body {
   -webkit-user-select: none;
   -ms-user-select: none;
   user-select: none;
-
+  
 }
 
 .menulist {
@@ -331,6 +332,7 @@ input:disabled {
   clear: both;
   float:left;
   margin-top: 6px;
+  width: 100%;
 }
 
 #framelist {

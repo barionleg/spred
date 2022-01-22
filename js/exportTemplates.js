@@ -51,31 +51,6 @@ const exportTemplates = [
         }
     },    
 
-
-    {
-        name:'Raw CSV data',
-        block: {
-            prefix: '#frames#,#height#,#gap#\n', postfix: ''
-        },
-        colors: {
-            prefix: '', postfix: ''
-        },
-        sprite: {
-            prefix: '', postfix: ''
-        },
-        frame: {
-            prefix: '', postfix: ''
-        },
-        line: {
-            numbers: false,
-            prefix: '', postfix: ',\n'
-        },
-        byte: {
-            forceNumeric: true, separator: ',',
-            hexPrefix: '$'
-        }
-    },
-
     {
         name:'Mad-Pascal',
         block: {
@@ -143,7 +118,55 @@ const exportTemplates = [
             forceNumeric: true, separator: ', ',
             hexPrefix: '0x'
         }
-    }
+    },
+
+    {
+        name:'Raw CSV sheet',
+        block: {
+            prefix: '#frames#,#height#,#gap#\n', postfix: ''
+        },
+        colors: {
+            prefix: '', postfix: ''
+        },
+        sprite: {
+            prefix: '', postfix: ''
+        },
+        frame: {
+            prefix: '', postfix: ''
+        },
+        line: {
+            numbers: false, prefix: '', postfix: "\n"
+        },
+        byte: {
+            forceNumeric: true, separator: ',',
+            hexPrefix: '$'
+        }
+    },   
+    
+    {
+        name:'Raw CSV one liner',
+        block: {
+            prefix: '#frames#,#height#,#gap#', postfix: ''
+        },
+        colors: {
+            prefix: '', postfix: ''
+        },
+        sprite: {
+            prefix: '', postfix: ''
+        },
+        frame: {
+            prefix: '', postfix: ''
+        },
+        line: {
+            numbers: false, prefix: '', postfix: ""
+        },
+        byte: {
+            forceNumeric: true, separator: ',',
+            hexPrefix: '$'
+        }
+    },
+
+
 
     // {
     //     name:'BASIC',
