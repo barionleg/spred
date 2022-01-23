@@ -5,6 +5,11 @@
   border:0;
 }
 
+html {
+  width: 100%;
+  height: 100%;
+}
+
 body {
   position: relative;
   background-color: rgb(70, 47, 33);
@@ -91,7 +96,7 @@ body {
 }
 
 .red {
-  color: #f88;
+  background-color: rgb(233, 69, 27);
 }
 
 .blue {

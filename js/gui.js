@@ -36,7 +36,6 @@ const gui = (options, dropHandler) => {
     $('#close_help').click(toggleHelp);
     $('#opt_lastTemplate_i').change(templateChange);
 
-
     $("select, input").filter( (i,o) => { return _.endsWith($(o).attr('id'),'_b')} ).change(()=>{
         updateOptions();
     });
@@ -47,9 +46,8 @@ const gui = (options, dropHandler) => {
         $('#opt_lastTemplate_i').append(option);
     };
 
-    $('#app').on('click', closeAllDialogs);
-
     $('html').on("drop", function (event) {
+        console.log('DOPR');
         event.preventDefault();
         event.stopPropagation();
         if (event.originalEvent.dataTransfer.files) {

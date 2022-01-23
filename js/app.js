@@ -1,8 +1,10 @@
 const GRID_COLOR = 'rgba(200,200,200,0.3)';
 const MAX_FILESIZE = 64 * 1024;
+const aplHeader = [0x9a,0xf8,0x39,0x21];
+const sprHeader = [0x53,0x70,0x72,0x21];
 const defaultOptions = {
-    version: '0.73',
-    storageName: 'SprEdStore073',
+    version: '0.77',
+    storageName: 'SprEdStore0723237',
     aspect: 1,
     spriteHeight: 16,
     spriteGap: 0,
@@ -26,7 +28,7 @@ const defaultWorkspace = {
     selectedColor: 1,
     selectedFrame: 0,
     backgroundColor: 0,
-    clipboard: null,
+    clipBoard: {},
     frames: []
 }
 
@@ -165,38 +167,52 @@ const currentFrame = () => {
     return  workspace.frames[workspace.selectedFrame];
 };
 
-const getColorOn = (frame,col,row) => {
-    const b0 = workspace.frames[frame].data[0][row];
-    const b1 = workspace.frames[frame].data[1][row];
+const getMasks = col => {
     const m0 = 0b10000000 >> col;
     const m1offset = col - options.spriteGap;
     const m1 = m1offset<0?0:0b10000000 >> m1offset;
+    return [m0, m1]
+}
+
+const getColorOn = (frame,col,row) => {
+    const b0 = workspace.frames[frame].data[0][row];
+    const b1 = workspace.frames[frame].data[1][row];
+    const [m0,m1] = getMasks(col);
     const c0 = (b0 & m0)?1:0;
-    const c2 = (b1 & m1)?2:0;
-    const c = c0 | c2;
-    return getColorRGB(frame,c);
+    const c1 = (b1 & m1)?2:0;
+    return c0 | c1;
+}
+
+const getRGBOn = (frame,col,row) => {
+    return getColorRGB(frame,getColorOn(frame,col,row));
 }
 
 const setColorOn = (col,row,color) => {
-        const c0 = (color & 1);
-        const c1 = (color & 2);
-        let c = 0;
-        const m0 = 0b10000000 >> col;
-        const m1offset = col - options.spriteGap;
-        const m1 = m1offset<0?0:0b10000000 >> m1offset;
-        if (m0) {
-            currentFrame().data[0][row] = currentFrame().data[0][row] & (~m0 & 0xff) 
-            if (c0) {
-                currentFrame().data[0][row] = currentFrame().data[0][row] | m0
-                c |= c0;
-            }
+        let c = getColorOn(workspace.selectedFrame,col,row);
+        const [m0,m1] = getMasks(col);
+        const clearPixel = () => {
+            currentFrame().data[0][row] = currentFrame().data[0][row] & (~m0 & 0xff)     
+            currentFrame().data[1][row] = currentFrame().data[1][row] & (~m1 & 0xff)     
         }
-        if (m1) {
-            currentFrame().data[1][row] = currentFrame().data[1][row] & (~m1 & 0xff) 
-            if (c1) {
-                currentFrame().data[1][row] = currentFrame().data[1][row] | m1
-                c |= c1;
-            }
+        if (color == 0) {
+            clearPixel();
+            c = 0;
+        }
+        if (m0 && color == 1) {
+            clearPixel();
+            currentFrame().data[0][row] = currentFrame().data[0][row] | m0
+            c = 1;
+        }
+        if (m1 && color == 2) {
+            clearPixel();
+            currentFrame().data[1][row] = currentFrame().data[1][row] | m1
+            c = 2;
+        }
+        if (m0 && m1 && color == 3) {
+            clearPixel();
+            currentFrame().data[0][row] = currentFrame().data[0][row] | m0
+            currentFrame().data[1][row] = currentFrame().data[1][row] | m1
+            c = 3;
         }
         drawBlock(col,row,getColorRGB(workspace.selectedFrame,c));
 }
@@ -371,7 +387,7 @@ const getFrameImage = (frame, scalex, scaley) => {
     const imageData = ctx.createImageData(w, h);
     for (let row=0;row<h;row++) {
         for (let col=0;col<w;col++) {
-            const crgb = getColorOn(frame, col, row);
+            const crgb = getRGBOn(frame, col, row);
             ctx.fillStyle = crgb;
             ctx.lineWidth = 0;
             ctx.fillRect(col*scalex,row*scaley,scalex,scaley);
@@ -399,7 +415,7 @@ const drawEditor = () => {
     editor.clearRect(0,0,editorWindow.swidth,editorWindow.sheight);
     for (let row=0;row<options.spriteHeight;row++) {
         for (let col=0;col<editorWindow.columns;col++) {
-            drawBlock(col, row, getColorOn(workspace.selectedFrame, col, row));
+            drawBlock(col, row, getRGBOn(workspace.selectedFrame, col, row));
         }
     }
     if(options.showGrid>0) {
@@ -450,12 +466,14 @@ const startPlayer = () => {
     if ((player == 0) && !playerInterval) {
         player = 1;
         playerInterval = setInterval(jumpToNextFrame,options.animationSpeed*20);
+        $("#timeline li").first().addClass('red');
     }
 }
 
 const stopPlayer = () => {
     player = 0;
     clearInterval(playerInterval);
+    $("#timeline li").first().removeClass('red');
     playerInterval = null;
 }
 
@@ -820,21 +838,18 @@ const parseTemplate = (template) => {
 const saveFile = () => {
 
     const name = prompt('set filename of saved file:', 'mysprites.spr');
-
     let binList = [];
     let listByte = 0;
-    while (listByte<display.bytecode.length) {
-        let cbyte = display.bytecode[listByte++];
-        if (cbyte == '#') {
-            let caddr = display.bytecode[listByte];
-            let address = Number(userIntParse(caddr));
-            binList.push(address & 0xFF);
-            listByte++;
-            binList.push((address & 0xFF00)>>8);
-        } else {
-            binList.push(Number(userIntParse(cbyte)) & 0xFF);
-        }
-    }
+    binList.push(sprHeader);
+    binList.push(workspace.selectedFrame,workspace.selectedColor,workspace.backgroundColor);
+    binList.push(options.animationSpeed,options.palette=='PAL'?0:1,options.aspect);
+    binList.push([0,0,0,0,0,0]); // 6 unused bytes
+    binList.push(workspace.frames.length,options.spriteHeight,options.spriteGap);
+    binList.push(_.map(workspace.frames,f=>f.colors[0]));
+    binList.push(_.map(workspace.frames,f=>f.colors[1]));
+    _.each(workspace.frames,f=>{f.data[0].length=options.spriteHeight;binList.push(f.data[0])});
+    _.each(workspace.frames,f=>{f.data[1].length=options.spriteHeight;binList.push(f.data[1])});
+    binList = _.flatMap(binList);
     var a = document.createElement('a');
     document.body.appendChild(a);
     var file = new Blob([new Uint8Array(binList)]);
@@ -855,13 +870,8 @@ const openFile = function (event) {
 
 const parseBinary = (binData) => {
 
-    const aplHeader = [0x9a,0xf8,0x39,0x21];
-
-    console.log(binData);
-
-    const parseError = msg => {
-        alert(msg);
-    }
+    //console.log(binData);
+    const parseError = msg => { alert(msg); }
 
     const areEqual = (a1,a2) => {
         if (a1.length != a2.length) {
@@ -879,9 +889,9 @@ const parseBinary = (binData) => {
     let binPtr = 0;
     let id = 0;
     
-    if (areEqual(aplHeader,binData.subarray(0,4))) { // PARSE APL 
-        const wrkspc = _.cloneDeep(defaultWorkspace);
-
+    if (areEqual(aplHeader,binData.subarray(0,4))) {               // PARSE APL 
+        const wrkspc = _.clone(defaultWorkspace);
+        wrkspc.frames = [];
         binPtr = 4;
         const aplFrames = binData[binPtr++];
         options.spriteHeight = binData[binPtr++];
@@ -909,6 +919,44 @@ const parseBinary = (binData) => {
         wrkspc.selectedColor = binData[binPtr++];
         options.animationSpeed = binData[binPtr++];
         options.palette = (binData[binPtr++]==1)?'NTSC':'PAL';
+        wrkspc.frames.length = aplFrames;
+        return wrkspc;
+
+        
+    } else if (areEqual(sprHeader,binData.subarray(0,4))) {            // PARSE SPR 
+
+        const wrkspc = _.clone(defaultWorkspace);
+        wrkspc.frames = [];
+        binPtr = 4;
+        wrkspc.selectedFrame = binData[binPtr++];
+        wrkspc.selectedColor = binData[binPtr++];
+        wrkspc.backgroundColor = binData[binPtr++];
+        options.animationSpeed = binData[binPtr++];
+        options.palette = (binData[binPtr++]==1)?'NTSC':'PAL';
+        options.aspect = binData[binPtr++];
+        binPtr += 6; // unused bytes
+        const aplFrames = binData[binPtr++];
+        options.spriteHeight = binData[binPtr++];
+        options.spriteGap = binData[binPtr++];
+
+        for(let f=0;f<aplFrames;f++) {
+            const frame = {
+                data: [[],[]],
+                colors: [binData[binPtr++]]
+            }
+            wrkspc.frames.push(frame);
+        }
+        for(let f=0;f<aplFrames;f++) {
+            wrkspc.frames[f].colors.push(binData[binPtr++]);
+        }
+        for(let f=0;f<aplFrames;f++) {
+            wrkspc.frames[f].data[0] = binData.subarray(binPtr,binPtr+options.spriteHeight);
+            binPtr += options.spriteHeight;
+        }
+        for(let f=0;f<aplFrames;f++) {
+            wrkspc.frames[f].data[1] = binData.subarray(binPtr,binPtr+options.spriteHeight);
+            binPtr += options.spriteHeight;
+        }
         wrkspc.frames.length = aplFrames;
         return wrkspc;
 
@@ -947,6 +995,18 @@ const closeAllDialogs = () => {
     $('div.dialog:visible').slideUp();
 }
 
+const deleteAll = () => {
+    if (confirm('Do you really want to delete and erase all frames?')) {
+        if (player) { return false };
+        workspace.frames.length = 1;
+        workspace.selectedFrame = 0;
+        clearFrame();
+        updateColors();
+        drawTimeline();
+    }
+}
+
+
 const clearFrame = () => {
     if (player) { return false };
     for (let r=0;r<options.spriteHeight;r++) {
@@ -956,15 +1016,29 @@ const clearFrame = () => {
     drawingEnded();
 }
 
+const copyColors = () => {
+    if (player) { return false };
+    workspace.clipBoard.colors = _.cloneDeep(currentFrame().colors);
+}
+
+const pasteColors = () => {
+    if (player) { return false };
+    if (workspace.clipBoard.colors) {
+        workspace.frames[workspace.selectedFrame].colors = _.cloneDeep(workspace.clipBoard.colors);
+    }
+    drawingEnded();
+}
+
+
 const copyFrame = () => {
     if (player) { return false };
-    workspace.clipBoard = _.cloneDeep(currentFrame());
+    workspace.clipBoard.frame = _.cloneDeep(currentFrame());
 }
 
 const pasteFrame = () => {
     if (player) { return false };
-    if (workspace.clipBoard) {
-        workspace.frames[workspace.selectedFrame] = _.cloneDeep(workspace.clipBoard);
+    if (workspace.clipBoard.frame) {
+        workspace.frames[workspace.selectedFrame] = _.cloneDeep(workspace.clipBoard.frame);
     }
     drawingEnded();
 }
@@ -1005,11 +1079,31 @@ const keyPressed = e => {
         case 'Escape':
             closeAllDialogs();
         break;
+        case 'Home':
+            workspace.selectedFrame = 0;
+            drawTimeline();
+            drawingEnded();
+        break;        
+        case 'End':
+            workspace.selectedFrame = workspace.frames.length-1;
+            drawTimeline();
+            drawingEnded();
+        break;        
         case 'Enter':
             if ($('#options_dialog').is(':visible')) {
                 saveOptions();
             }
         break;
+        case 'BracketLeft':
+            copyColors();
+        break;              
+        case 'BracketRight':
+            if (pasteColors()) {
+                drawTimeline();
+                updateColors();
+                drawingEnded();
+            };
+        break;              
 
         default:
             break;
@@ -1157,10 +1251,8 @@ $(document).ready(function () {
     app.addMenuItem('🡅', moveFrameUp, 'framemenu', 'Moves frame contents up');
     app.addMenuItem('🡇', moveFrameDown, 'framemenu', 'Moves frame contents down');
     app.addSeparator('framemenu');
-    app.addMenuItem('➕', heightUp, 'framemenu', 'Double lines');
+    app.addMenuItem('➕', heightUp, 'framemenu', 'Expand by doubling lines');
     app.addMenuItem('➖', heightDown, 'framemenu', 'Remove every second line');
-
-    
 
     app.addMenuItem('⏵︎', startPlayer, 'timemenu', 'Starts Animation [Space]');
     app.addMenuItem('⏹︎', stopPlayer, 'timemenu', 'Stops Animation [Space]');
@@ -1171,8 +1263,10 @@ $(document).ready(function () {
     app.addMenuItem('Clone', cloneFrame, 'timemenu', 'Adds copy of frame');
     app.addMenuItem('Delete', delFrame, 'timemenu', 'Deletes current frame');
     app.addSeparator('timemenu');
-    app.addMenuItem('🡄', animFrameLeft, 'timemenu', 'Moves current frame left');
-    app.addMenuItem('🡆', animFrameRight, 'timemenu', 'Moves current frame right');
+    app.addMenuItem('🡄⏹︎', animFrameLeft, 'timemenu', 'Moves current frame left');
+    app.addMenuItem('⏹︎🡆', animFrameRight, 'timemenu', 'Moves current frame right');
+    app.addSeparator('timemenu');
+    app.addMenuItem('Delete All', deleteAll, 'timemenu', 'Clears and deletes all frames');
     
 
     $('.colorbox').bind('mousedown',(e)=> {
@@ -1197,5 +1291,6 @@ $(document).ready(function () {
     drawTimeline();
 
     document.addEventListener('keydown', keyPressed);
+    $('html').on('dragover',e=>{e.preventDefault()});
 
 });
