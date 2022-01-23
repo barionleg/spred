@@ -21,7 +21,7 @@ const exportTemplates = [
             prefix: '  dta ', postfix: '\n'
         },
         byte: {
-            forceNumeric: false, separator: ', ',
+            separator: ', ',
             hexPrefix: '$', addrPrefix: 'a(', addrPostfix: ')'
         }
     },    
@@ -46,10 +46,35 @@ const exportTemplates = [
             prefix: '  .BYTE ', postfix: '\n'
         },
         byte: {
-            forceNumeric: true, separator: ', ',
+            separator: ', ',
             hexPrefix: '$'
         }
     },    
+
+
+    {
+        name:'MAC/65',
+        block: {
+            prefix: '#-1# .BYTE #frames#,#height#,#gap# ;frames,height,gap\n', postfix: ''
+        },
+        colors: {
+            prefix: '', postfix: ''
+        },
+        sprite: {
+            prefix: '', postfix: ''
+        },
+        frame: {
+            prefix: '', postfix: ''
+        },
+        line: {
+            numbers: true,
+            prefix: '.BYTE ', postfix: '\n'
+        },
+        byte: {
+            separator: ',',
+            hexPrefix: '$'
+        }
+    },        
 
     {
         name:'Mad-Pascal',
@@ -69,7 +94,7 @@ const exportTemplates = [
             numbers: false, prefix: '    ', postfix: ",\n", lastpostfix: "\n"
         },
         byte: {
-            forceNumeric: true, separator: ', ',
+            separator: ', ',
             hexPrefix: '$'
         }
     },
@@ -92,7 +117,7 @@ const exportTemplates = [
             numbers: false, prefix: '  ', postfix: "\n"
         },
         byte: {
-            forceNumeric: true, separator: ' ',
+            separator: ' ',
             hexPrefix: '$'
         }
     },
@@ -115,8 +140,55 @@ const exportTemplates = [
             numbers: false, prefix: '    ', postfix: ",\n", lastpostfix: "\n"
         },
         byte: {
-            forceNumeric: true, separator: ', ',
+            separator: ', ',
             hexPrefix: '0x'
+        }
+    },
+
+    {
+        name:'FastBasic',
+        block: {
+            prefix: 'frames = #frames#\ngap = #gap#\nheight = #height#\n\n', postfix: ''
+        },
+        colors: {
+            prefix: "data colors#s#()", postfix: ""
+        },
+        sprite: {
+            prefix: "\n'sprite #s#\n", postfix: ''
+        },        
+        frame: {
+            prefix: "data frame#s#_#f#()", postfix: ""
+        },
+        line: {
+            numbers: false, prefix: ' byte = ', postfix: ",\ndata", lastpostfix: "\n"
+        },
+        byte: {
+            separator: ', ',
+            hexPrefix: '$'
+        }
+    },
+
+    {
+        name:'BASIC',
+        block: {
+            prefix: '#-2# FRAMES=#frames#:HEIGHT=#height#:GAP=#gap#\n#-1# REM *** SPRITE DATA ***\n', postfix: ''
+        },
+        colors: {
+            prefix: '', postfix: ''
+        },
+        sprite: {
+            prefix: '', postfix: ''
+        },
+        frame: {
+            prefix: '', postfix: ''
+        },
+        line: {
+            numbers: true, prefix: 'DATA ', postfix: "\n"
+        },
+        byte: {
+            forceNumeric: 'DEC', 
+            separator: ',',
+            hexPrefix: ''
         }
     },
 
@@ -138,7 +210,7 @@ const exportTemplates = [
             numbers: false, prefix: '', postfix: "\n"
         },
         byte: {
-            forceNumeric: true, separator: ',',
+            separator: ',',
             hexPrefix: '$'
         }
     },   
@@ -161,26 +233,10 @@ const exportTemplates = [
             numbers: false, prefix: '', postfix: ""
         },
         byte: {
-            forceNumeric: true, separator: ',',
+            separator: ',',
             hexPrefix: '$'
         }
     },
-
-
-
-    // {
-    //     name:'BASIC',
-    //     block: {
-    //         prefix: "", postfix: ""
-    //     },
-    //     line: {
-    //         numbers: { start: 10000, step: 10}, prefix: 'DATA ', postfix: "\n"
-    //     },
-    //     byte: {
-    //         forceNumeric: true, separator: ',',
-    //         hexPrefix: ''
-    //     }
-    // },
 
 
     

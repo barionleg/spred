@@ -99,10 +99,10 @@
   <div id='options_dialog' class='dialog'>
       <div class='dialog_title'>Options</div>
       <div class='dialog_content'>
+
         <div class='dialog_blocks'>
           <div class='dialog_block'>
-
-            <h3>Options:</h3>
+            <h3>Editor Options:</h3>
 
             <fieldset>
               <label class='dialog_label'>Sprite Height:</label>
@@ -123,11 +123,16 @@
             </fieldset>
 
             <fieldset>
-              <label class='dialog_label'>Palette:</label>
+              <label class='dialog_label'>Colour palette:</label>
               <select id='opt_palette_s' class='dialog_text_input'>
                 <option value='PAL'>PAL</option>
                 <option value='NTSC'>NTSC</option>
               </select>
+            </fieldset>
+
+            <fieldset>
+              <label class='dialog_label checkbox_label'>
+                <input type='checkbox' id='opt_commonPalette_b'/>Common palette</label>
             </fieldset>
 
             <fieldset>
@@ -154,10 +159,9 @@
               <label class='dialog_label checkbox_label'>
                 <input type='checkbox' id='opt_showGrid_b'/>Show Grid</label>
             </fieldset>
+          </div>
 
-
-            <hr>
-
+          <div class='dialog_block'>
             <h3>Import/Export Options:</h3>
             <fieldset>
               <label class='dialog_label'>Show bytes as:</label>
@@ -172,9 +176,17 @@
               <input type='text' id='opt_bytesPerLine_i' class='dialog_text_input input_narrow'>
             </fieldset>
 
+            <fieldset>
+              <label class='dialog_label'>Starting Line Number:</label>
+              <input type='text' id='opt_startingLine_i' class='dialog_text_input input_narrow'>
+            </fieldset>
+            <fieldset>
+              <label class='dialog_label'>Step:</label>
+              <input type='text' id='opt_lineStep_i' class='dialog_text_input input_narrow'>
+            </fieldset>
           </div>
-
         </div>
+
         <hr>
         <div class='menuitem clear_left' id='save_options'>&nbsp; &nbsp; OK &nbsp; &nbsp;</div>
       </div>

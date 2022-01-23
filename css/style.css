@@ -107,6 +107,10 @@ pre {
   font-family: 'Courier New', Courier, monospace;
 }
 
+.none {
+  display: none;
+}
+
 .dialog {
     position:absolute;
     display:none;
@@ -202,7 +206,7 @@ fieldset, hr {
 .dialog_block:not(:last-child) {
     margin-right:10px;
     padding-right:10px;
-    border-right:1px solid #454;
+    border-right:1px solid #888;
 }
 
 .clear_left {
@@ -401,4 +405,10 @@ input:disabled {
 
 .donate {
   float:right;  
+}
+
+#line_numbers label{
+  display: inline;
+  float: none;
+  margin-left: 20px;
 }

@@ -3,8 +3,8 @@ const MAX_FILESIZE = 64 * 1024;
 const aplHeader = [0x9a,0xf8,0x39,0x21];
 const sprHeader = [0x53,0x70,0x72,0x21];
 const defaultOptions = {
-    version: '0.78',
-    storageName: 'SprEdStore078',
+    version: '0.79',
+    storageName: 'SprEdStore079',
     aspect: 1,
     spriteHeight: 16,
     spriteGap: 0,
@@ -13,9 +13,12 @@ const defaultOptions = {
     wrapEditor: 1,
     animationSpeed: 5,
     palette: 'PAL',
+    commonPalette: 0,
     bytesExport: 'HEX',
     bytesPerLine: 10,
-    lastTemplate: 0
+    lastTemplate: 0,
+    startingLine: 10000,
+    lineStep: 10
 }
 let options = {};
 const dontSave = ['version', 'storageName'];
@@ -103,11 +106,12 @@ const getEmptyFrame = () => {
     return frame;
 }
 
-const currentFrame = () => workspace.frames[workspace.selectedFrame];
-
 // *********************************** COLOR OPERATIONS
 
 const getColors = (frame) => {
+    if (options.commonPalette) {
+        frame = 0;
+    }
     return [
         workspace.backgroundColor,
         workspace.frames[frame].colors[0],
@@ -188,9 +192,10 @@ const getRGBOn = (frame,col,row) => {
 const setColorOn = (col,row,color) => {
         let c = getColorOn(workspace.selectedFrame,col,row);
         const [m0,m1] = getMasks(col);
+        const currentFrame = workspace.frames[workspace.selectedFrame];
         const clearPixel = () => {
-            currentFrame().data[0][row] = currentFrame().data[0][row] & (~m0 & 0xff)     
-            currentFrame().data[1][row] = currentFrame().data[1][row] & (~m1 & 0xff)     
+            currentFrame.data[0][row] &= (~m0 & 0xff)     
+            currentFrame.data[1][row] &= (~m1 & 0xff)     
         }
         if (color == 0) {
             clearPixel();
@@ -198,33 +203,34 @@ const setColorOn = (col,row,color) => {
         }
         if (m0 && color == 1) {
             clearPixel();
-            currentFrame().data[0][row] = currentFrame().data[0][row] | m0
+            currentFrame.data[0][row] |= m0
             c = 1;
         }
         if (m1 && color == 2) {
             clearPixel();
-            currentFrame().data[1][row] = currentFrame().data[1][row] | m1
+            currentFrame.data[1][row] |= m1
             c = 2;
         }
         if (m0 && m1 && color == 3) {
             clearPixel();
-            currentFrame().data[0][row] = currentFrame().data[0][row] | m0
-            currentFrame().data[1][row] = currentFrame().data[1][row] | m1
+            currentFrame.data[0][row] |= m0
+            currentFrame.data[1][row] |= m1
             c = 3;
         }
         drawBlock(col,row,getColorRGB(workspace.selectedFrame,c));
 }
 
 const setNewColor = (c, cval) => {
+    const frame = (options.commonPalette)?0:workspace.selectedFrame;
     switch (c) {
         case 0:
             workspace.backgroundColor = cval;
             break;
         case 1:
-            currentFrame().colors[0] = cval;
+            workspace.frames[frame].colors[0] = cval;
             break;
         case 2:
-            currentFrame().colors[1] = cval;
+            workspace.frames[frame].colors[1] = cval;
             break;
     }
     storeWorkspace();
@@ -235,8 +241,7 @@ const colorCellClicked = e => {
     cval = Number(_.last(_.split(e.target.id,'_')));
     c = Number(_.last($(e.target).parent()[0].id));
     setNewColor(c,cval);
-    updateColors();
-    drawEditor();
+    updateScreen();
     $(".palette").remove();
 
 }
@@ -501,6 +506,7 @@ const toggleDiv = (divId) => {
 }
 
 const toggleExport = () => {
+    templateChange();
     if (toggleDiv('#export_dialog')) {
         refreshOptions();
         exportData();
@@ -559,6 +565,8 @@ const validateOptions = () => {
     if (!valIntInput('spriteHeight')) return false;
     if (!valIntInput('spriteGap')) return false;
     if (!valIntInput('animationSpeed')) return false;
+    if (!valIntInput('lineStep')) return false;
+    if (!valIntInput('startingLine')) return false;
 
     clampOption('bytesPerLine',1,100000);
     clampOption('spriteHeight',1,128);
@@ -608,16 +616,14 @@ const updateOptions = () => {
 const saveOptions = () => {
     if (validateOptions()) {
         updateOptions();
-        toggleOptions();
+        closeAllDialogs();
     }
     newCanvas();
-    drawEditor();
-    updateColors();
     if (player) {
         stopPlayer();
         startPlayer();
     }
-    drawTimeline();
+    updateScreen();
 }
 
 // ************************************ WORKSPACE STORAGE
@@ -655,7 +661,14 @@ const parseTemplate = (template) => {
     let lines = '';
 
     const formatByte = b => {
-        if (options.bytesExport == 'HEX') {
+        let hexFormat = options.bytesExport == 'HEX';
+        if (template.byte.forceNumeric=='DEC') {
+            hexFormat = false;
+        }
+        if (template.byte.forceNumeric=='HEX') {
+            hexFormat = true;
+        }
+        if (hexFormat) {
             return `${template.byte.hexPrefix}${decimalToHex(userIntParse(b))}`;
         } else {
             return b;
@@ -668,14 +681,17 @@ const parseTemplate = (template) => {
         .replace(/#gap#/g, formatByte(options.spriteGap))
         .replace(/#frames#/g, formatByte(workspace.frames.length))
         .replace(/#maxheight#/g, formatByte(options.spriteHeight-1))
-        .replace(/#maxframes#/g, formatByte(workspace.frames.length-1));
+        .replace(/#maxframes#/g, formatByte(workspace.frames.length-1))
+        .replace(/#-1#/g, options.startingLine-1)
+        .replace(/#-2#/g, options.startingLine-2)
+
             
     }
 
     const getBlock = (block, blockTemp) => {
         let blockLines = `${blockTemp.prefix}${block}${blockTemp.postfix}`;
         blockLines = blockLines.replace(/#f#/g, tframe).replace(/#s#/g, tsprite);
-        lineCount+= blockLines.split(/\r\n|\r|\n/).length + 1;
+        //lineCount+= blockLines.split(/\r\n|\r|\n/).length + 1;
         return blockLines
     }
 
@@ -684,7 +700,7 @@ const parseTemplate = (template) => {
     }    
     
     const pushLine = (line, last) => {
-        const num = (template.line.numbers) ? `${template.line.numbers.start + template.line.numbers.step * lineCount} `:'';
+        const num = (template.line.numbers) ? `${options.startingLine + options.lineStep * lineCount} `:'';
         lineCount++;
         lines += `${num}${template.line.prefix}${line}${last?template.line.lastpostfix || template.line.postfix:template.line.postfix}`;
         byteInRow = 0;
@@ -724,6 +740,7 @@ const parseTemplate = (template) => {
         _.each(workspace.frames, (frame,f) => {
             lines = '';
             tframe = f;
+            frame.data[s].length = options.spriteHeight;
             pushArray(frame.data[s])
             sprite += getBlock(lines, template.frame);
         });   
@@ -927,8 +944,8 @@ const deleteAll = () => {
 const clearFrame = () => {
     if (player) { return false };
     for (let r=0;r<options.spriteHeight;r++) {
-        currentFrame().data[0][r] = 0;
-        currentFrame().data[1][r] = 0;
+        workspace.frames[workspace.selectedFrame].data[0][r] = 0;
+        workspace.frames[workspace.selectedFrame].data[1][r] = 0;
     }
     drawingEnded();
 }
@@ -994,12 +1011,12 @@ const delFrame = () => {
 // ************************************ FRAME OPERATION
 
 const copyColors = () => {
-    if (player) { return false };
-    workspace.clipBoard.colors = _.cloneDeep(currentFrame().colors);
+    if (player || options.commonPalette) { return false };
+    workspace.clipBoard.colors = _.cloneDeep(workspace.frames[workspace.selectedFrame].colors);
 }
 
 const pasteColors = () => {
-    if (player) { return false };
+    if (player || options.commonPalette) { return false };
     if (workspace.clipBoard.colors) {
         workspace.frames[workspace.selectedFrame].colors = _.cloneDeep(workspace.clipBoard.colors);
     }
@@ -1008,7 +1025,7 @@ const pasteColors = () => {
 
 const copyFrame = () => {
     if (player) { return false };
-    workspace.clipBoard.frame = _.cloneDeep(currentFrame());
+    workspace.clipBoard.frame = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
 }
 
 const pasteFrame = () => {
@@ -1124,66 +1141,81 @@ const heightUp = () => {
 // ************************************ KEY BINDINGS
 
 const keyPressed = e => {
-    switch (e.code) {
-        case 'Digit1':
-                colorClicked(1);
+    if ($('.dialog:visible').length==0) { // editor only
+        switch (e.code) {
+            case 'Digit1':
+                    colorClicked(1);
+                break;
+            case 'Digit2':
+                    colorClicked(2);
             break;
-        case 'Digit2':
-                colorClicked(2);
-        break;
-        case 'Digit3':
-                colorClicked(3);
-        break;
-        case 'Digit4':
-        case 'Digit0':
-        case 'Backquote':
-                colorClicked(0);
-        break;
-        case 'Space':
-            if (player) {
-                stopPlayer();
-            } else {
-                startPlayer();
-            }
-        break;
-        case 'ArrowRight': 
-            if (!player) {
-                jumpToNextFrame();
-            }
-        break;
-        case 'ArrowLeft': 
-            if (!player) {
-                jumpToPrevFrame();
-            }
-        break;
-        case 'Escape':
-            closeAllDialogs();
-        break;
-        case 'Home':
-            workspace.selectedFrame = 0;
-            updateScreen()
-            break;        
-        case 'End':
-            workspace.selectedFrame = workspace.frames.length-1;
-            updateScreen()
-            break;        
-        case 'Enter':
-            if ($('#options_dialog').is(':visible')) {
-                saveOptions();
-            }
-        break;
-        case 'BracketLeft':
-            copyColors();
-        break;              
-        case 'BracketRight':
-            if (pasteColors()) {
+            case 'Digit3':
+                    colorClicked(3);
+            break;
+            case 'Digit4':
+            case 'Digit0':
+            case 'Backquote':
+                    colorClicked(0);
+            break;
+            case 'Space':
+                if (player) {
+                    stopPlayer();
+                } else {
+                    startPlayer();
+                }
+            break;
+            case 'ArrowRight': 
+                if (!player) {
+                    jumpToNextFrame();
+                }
+            break;
+            case 'ArrowLeft': 
+                if (!player) {
+                    jumpToPrevFrame();
+                }
+            break;
+            case 'Home':
+                workspace.selectedFrame = 0;
                 updateScreen()
-            };
-        break;              
-
-        default:
+                break;        
+            case 'End':
+                workspace.selectedFrame = workspace.frames.length-1;
+                updateScreen()
+                break;        
+            case 'BracketLeft':
+                copyColors();
+            break;              
+            case 'BracketRight':
+                if (pasteColors()) {
+                    updateScreen()
+                };
+            break;              
+    
+            default:
+                break;
+        }
+   
+    } else {  /// dialogs
+        switch (e.code) {
+            case 'Escape':
+                closeAllDialogs();
             break;
-    }
+            case 'Enter':
+                if ($('#options_dialog').is(':visible')) {
+                    saveOptions();
+                }
+                if ($('#export_dialog').is(':visible')) {
+                    if (validateOptions()) {
+                        updateOptions()
+                    }
+                    exportData();
+                }
+            break;
+
+            default:
+                break;
+        }
+        }
     //console.log(e.code);
 }
 
@@ -1219,18 +1251,18 @@ $(document).ready(function () {
     app.addMenuItem('🡅', moveFrameUp, 'framemenu', 'Moves frame contents up');
     app.addMenuItem('🡇', moveFrameDown, 'framemenu', 'Moves frame contents down');
     app.addSeparator('framemenu');
-    app.addMenuItem('➕', heightUp, 'framemenu', 'Expand by doubling lines');
-    app.addMenuItem('➖', heightDown, 'framemenu', 'Remove every second line');
+    app.addMenuItem('≡+', heightUp, 'framemenu', 'Expand by doubling lines');
+    app.addMenuItem('≡−', heightDown, 'framemenu', 'Remove every second line');
 
-    app.addMenuItem('⏵︎', startPlayer, 'timemenu', 'Starts Animation [Space]');
+    app.addMenuItem('▶', startPlayer, 'timemenu', 'Starts Animation [Space]');
     app.addMenuItem('⏹︎', stopPlayer, 'timemenu', 'Stops Animation [Space]');
     app.addSeparator('timemenu');
     app.addMenuItem('Add', addFrame, 'timemenu', 'Adds new empty frame');
     app.addMenuItem('Clone', cloneFrame, 'timemenu', 'Adds copy of frame');
     app.addMenuItem('Delete', delFrame, 'timemenu', 'Deletes current frame');
     app.addSeparator('timemenu');
-    app.addMenuItem('🡄⏹︎', animFrameLeft, 'timemenu', 'Moves current frame left');
-    app.addMenuItem('⏹︎🡆', animFrameRight, 'timemenu', 'Moves current frame right');
+    app.addMenuItem('🡄🞑', animFrameLeft, 'timemenu', 'Moves current frame left');
+    app.addMenuItem('🞑🡆', animFrameRight, 'timemenu', 'Moves current frame right');
     app.addSeparator('timemenu');
     app.addMenuItem('Delete All', deleteAll, 'timemenu', 'Clears and deletes all frames');
 
