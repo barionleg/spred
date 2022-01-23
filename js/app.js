@@ -15,7 +15,7 @@ const defaultOptions = {
     palette: 'PAL',
     commonPalette: 0,
     bytesExport: 'HEX',
-    bytesPerLine: 10,
+    bytesPerLine: 16,
     lastTemplate: 0,
     startingLine: 10000,
     lineStep: 10
