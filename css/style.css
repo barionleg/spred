@@ -185,7 +185,7 @@ pre {
 .checkbox_label input {
   display:block;
   float:left;
-  margin:0 1em 4px 0 !important;
+  margin:0 0.61em 4px 0 !important;
 }
 
 fieldset, hr {

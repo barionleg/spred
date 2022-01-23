@@ -3,8 +3,8 @@ const MAX_FILESIZE = 64 * 1024;
 const aplHeader = [0x9a,0xf8,0x39,0x21];
 const sprHeader = [0x53,0x70,0x72,0x21];
 const defaultOptions = {
-    version: '0.79',
-    storageName: 'SprEdStore079',
+    version: '0.7.10',
+    storageName: 'SprEdStore0710',
     aspect: 1,
     spriteHeight: 16,
     spriteGap: 0,
@@ -18,7 +18,8 @@ const defaultOptions = {
     bytesPerLine: 16,
     lastTemplate: 0,
     startingLine: 10000,
-    lineStep: 10
+    lineStep: 10,
+    ORDrawsOutside: 0 
 }
 let options = {};
 const dontSave = ['version', 'storageName'];
@@ -211,11 +212,13 @@ const setColorOn = (col,row,color) => {
             currentFrame.data[1][row] |= m1
             c = 2;
         }
-        if (m0 && m1 && color == 3) {
-            clearPixel();
-            currentFrame.data[0][row] |= m0
-            currentFrame.data[1][row] |= m1
-            c = 3;
+        if (color == 3) {
+            if (options.ORDrawsOutside || (m0 && m1)) {
+                clearPixel();
+                currentFrame.data[0][row] |= m0
+                currentFrame.data[1][row] |= m1
+                c = (m0?1:0) | (m1?2:0);
+            }
         }
         drawBlock(col,row,getColorRGB(workspace.selectedFrame,c));
 }
