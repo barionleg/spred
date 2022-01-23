@@ -3,8 +3,8 @@ const MAX_FILESIZE = 64 * 1024;
 const aplHeader = [0x9a,0xf8,0x39,0x21];
 const sprHeader = [0x53,0x70,0x72,0x21];
 const defaultOptions = {
-    version: '0.77',
-    storageName: 'SprEdStore0723237',
+    version: '0.78',
+    storageName: 'SprEdStore078',
     aspect: 1,
     spriteHeight: 16,
     spriteGap: 0,
@@ -55,6 +55,10 @@ const reversedBytes = [
 
 // ******************************* HELPERS
 
+Number.prototype.clamp = function (min, max) {
+    return Math.min(Math.max(this, min), max);
+}
+
 function decimalToHex(d, padding) {
     var hex = Number(d).toString(16);
     padding = typeof (padding) === "undefined" || padding === null ? padding = 2 : padding;
@@ -99,7 +103,9 @@ const getEmptyFrame = () => {
     return frame;
 }
 
-// *********************************** COLORS
+const currentFrame = () => workspace.frames[workspace.selectedFrame];
+
+// *********************************** COLOR OPERATIONS
 
 const getColors = (frame) => {
     return [
@@ -135,10 +141,6 @@ const getColorRGB = (frame,c) => {
     return getByteRGB(colors[c]);
 }
 
-Number.prototype.clamp = function (min, max) {
-    return Math.min(Math.max(this, min), max);
-}
-
 const getByteRGB = (cval) => {
 
     const cr = (cval >> 4) & 15;
@@ -162,10 +164,6 @@ const getByteRGB = (cval) => {
     const rgb = `rgb(${rr},${gg},${bb})`;
     return rgb;
 }
-
-const currentFrame = () => {
-    return  workspace.frames[workspace.selectedFrame];
-};
 
 const getMasks = col => {
     const m0 = 0b10000000 >> col;
@@ -282,10 +280,9 @@ const pickerClicked = (e) => {
     //console.log(c);
 }
 
-// *********************************** EDITOR
+// *********************************** EDITOR OPERATIONS
 
 const editorWindow = {}
-
 let currentCell = {}
 
 const sameCell = (c,n) => {
@@ -303,9 +300,8 @@ const sameCell = (c,n) => {
 
 const locateCell = (event) => {
     const cell = {};
-    //rect = $('#editor_canvas')[0].getBoundingClientRect();
-    const x = event.offsetX; //event.clientX - rect.left;
-    const y = event.offsetY; //event.clientY - rect.top;
+    const x = event.offsetX; 
+    const y = event.offsetY; 
     cell.row = Math.floor(y/editorWindow.cyoffset);
     cell.col = Math.floor(x/editorWindow.cxoffset);
     return cell;
@@ -316,15 +312,15 @@ const onCanvasMove = (event) => {
     const newCell = locateCell(event);
     if (!sameCell(currentCell,newCell)) {
         if (event.buttons > 0) {
-            clickLeftOnCanvas(event);
+            clickOnCanvas(event);
         }
     }
 }
 
-const clickLeftOnCanvas = (event) => {
+const clickOnCanvas = (event) => {
     if (player) { return false };
     let color = workspace.selectedColor;
-    if (event.buttons == 2) { // right
+    if (event.buttons == 2) { // right button
             color = 0;
     }
     currentCell = locateCell(event);
@@ -365,7 +361,7 @@ const newCanvas = () => {
     .attr('width',editorWindow.swidth)
     .attr('height',editorWindow.sheight)
     .contextmenu(clickRightOnCanvas)
-    .bind('mousedown',clickLeftOnCanvas)
+    .bind('mousedown',clickOnCanvas)
     .bind('mousemove',onCanvasMove)
     .bind('mouseup',drawingEnded)
     .bind('mouseleave',onMouseOut)
@@ -421,110 +417,12 @@ const drawEditor = () => {
     if(options.showGrid>0) {
         drawGrid();
     }
-
     $("#framepreview").empty();
     $("#framepreview").append(getFrameImage(workspace.selectedFrame,2,2/options.aspect));
     $("#framepreview").append(getFrameImage(workspace.selectedFrame,4,2/options.aspect));
     $("#framepreview").append(getFrameImage(workspace.selectedFrame,8,2/options.aspect).addClass('clear_left'));
-
     $(`#fbox_${workspace.selectedFrame}`).children().last().remove();
     $(`#fbox_${workspace.selectedFrame}`).append(getFrameImage(workspace.selectedFrame,4,4/options.aspect));
-
-}
-
-const jumpToFrame = f => {
-    if (workspace.frames[f]) {
-        workspace.selectedFrame = f;
-        drawTimeline();
-        drawingEnded();
-        updateColors();
-    }
-}
-
-const jumpToNextFrame = () => {
-    workspace.selectedFrame++;
-    if (workspace.selectedFrame >= workspace.frames.length) {
-        workspace.selectedFrame = 0;    
-    }
-    drawTimeline();
-    drawingEnded();
-    updateColors();
-}
-
-const jumpToPrevFrame = () => {
-    workspace.selectedFrame--;
-    if (workspace.selectedFrame < 0) {
-        workspace.selectedFrame = workspace.frames.length - 1;    
-    }
-    drawTimeline();
-    drawingEnded();
-    updateColors();
-}
-
-
-const startPlayer = () => {
-    if ((player == 0) && !playerInterval) {
-        player = 1;
-        playerInterval = setInterval(jumpToNextFrame,options.animationSpeed*20);
-        $("#timeline li").first().addClass('red');
-    }
-}
-
-const stopPlayer = () => {
-    player = 0;
-    clearInterval(playerInterval);
-    $("#timeline li").first().removeClass('red');
-    playerInterval = null;
-}
-
-const cloneFrame = () => {
-    if (player) { return false };    
-    const newframe = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
-    workspace.frames.splice(workspace.selectedFrame,0,newframe);
-    jumpToFrame(workspace.selectedFrame+1);
-}
-
-const animFrameLeft = () => {
-    if (player) { return false };    
-    if (workspace.selectedFrame == 0) {return false}
-    const newframe = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
-    workspace.frames.splice(workspace.selectedFrame,1);
-    workspace.frames.splice(workspace.selectedFrame-1,0,newframe);
-    jumpToFrame(workspace.selectedFrame-1);
-}
-
-const animFrameRight = () => {
-    if (player) { return false };    
-    if (workspace.selectedFrame == workspace.frames.length-1) {return false}
-    const newframe = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
-    workspace.frames.splice(workspace.selectedFrame,1);
-    workspace.frames.splice(workspace.selectedFrame+1,0,newframe);
-    jumpToFrame(workspace.selectedFrame+1);
-}
-
-const addFrame = () => {
-    if (player) { return false };    
-    const newframe = getEmptyFrame();
-    workspace.frames.splice(workspace.selectedFrame+1,0,newframe);
-    jumpToFrame(workspace.selectedFrame+1);
-}
-
-const delFrame = () => {
-    if (player) { return false };    
-    if (workspace.frames.length>1) {
-        workspace.frames.splice(workspace.selectedFrame,1);
-        if (!workspace.frames[workspace.selectedFrame]) {
-            workspace.selectedFrame--;
-        }
-        jumpToFrame(workspace.selectedFrame);
-    }
-}
-
-const frameboxClicked = e => {
-    if (player) { return false };
-    const f = Number(_.last(_.split(e.target.id,'_')));
-    //console.log(e.target);
-    jumpToFrame(f);
 }
 
 const drawTimeline = () => {
@@ -547,6 +445,19 @@ const drawTimeline = () => {
     });
 }
 
+const updateScreen = () => {
+    drawTimeline();
+    drawingEnded();
+    updateColors();
+}
+
+const frameboxClicked = e => {
+    if (player) { return false };
+    const f = Number(_.last(_.split(e.target.id,'_')));
+    //console.log(e.target);
+    jumpToFrame(f);
+}
+
 const drawGridLine = (x1,y1,x2,y2) => {
     editor.beginPath();
     editor.moveTo(x1, y1);
@@ -567,25 +478,46 @@ const drawGrid = () => {
     }
 }
 
-// *********************************** OPTIONS
+// ***************************************************** DIALOGS
 
-const refreshOptions = () => {
-
-    const opts = _.filter($("select, input"), opt => {
-        return _.startsWith($(opt).attr('id'),'opt_');
-    });
-    const newopts = {};
-    _.each(opts, opt => {
-        const opt_id = $(opt).attr('id');
-        const opt_name = _.split(opt_id ,'_');
-        const opt_type = opt_name[2];
-        const opt_val = options[opt_name[1]];
-        $(`#${opt_id}`).val(opt_val);
-        if (opt_type == 'b') {
-            $(`#${opt_id}`).prop('checked', opt_val);
-        }
-    });
+const closeAllDialogs = () => {
+    $('div.dialog:visible').slideUp();
 }
+
+const templateChange = () => {
+    updateOptions();
+    exportData();
+}
+
+const toggleDiv = (divId) => {
+    closeAllDialogs();
+    const isVisible = $(divId).is(':visible');
+    if (isVisible) {
+        $(divId).slideUp();
+    } else {
+        $(divId).slideDown();
+    }
+    return !isVisible;
+}
+
+const toggleExport = () => {
+    if (toggleDiv('#export_dialog')) {
+        refreshOptions();
+        exportData();
+    }
+}
+
+const toggleHelp = () => {
+    toggleDiv('#help_dialog')
+}
+
+const toggleOptions = () => {
+    if (toggleDiv('#options_dialog')) {
+        refreshOptions();
+    }
+}
+
+// *********************************** OPTIONS
 
 const valIntInput = (inputId) => {
     const idiv = $(`#opt_${inputId}_i`);
@@ -604,6 +536,23 @@ const clampOption = (inputId,min,max) => {
     idiv.val(uint.clamp(min,max));
 }
 
+const refreshOptions = () => {
+    const opts = _.filter($("select, input"), opt => {
+        return _.startsWith($(opt).attr('id'),'opt_');
+    });
+    const newopts = {};
+    _.each(opts, opt => {
+        const opt_id = $(opt).attr('id');
+        const opt_name = _.split(opt_id ,'_');
+        const opt_type = opt_name[2];
+        const opt_val = options[opt_name[1]];
+        $(`#${opt_id}`).val(opt_val);
+        if (opt_type == 'b') {
+            $(`#${opt_id}`).prop('checked', opt_val);
+        }
+    });
+}
+
 const validateOptions = () => {
     $('.dialog_text_input').removeClass('warn');
     if (!valIntInput('bytesPerLine')) return false;
@@ -619,32 +568,8 @@ const validateOptions = () => {
     return true;
 }
 
-const toggleOptions = () => {
-    closeAllDialogs();
-    if ($('#options_dialog').is(':visible')) {
-        $('#options_dialog').slideUp();
-    } else {
-        refreshOptions();
-        $('#options_dialog').slideDown();
-    }
-}
-
-const toggleHelp = () => {
-    closeAllDialogs();
-    if ($('#help_dialog').is(':visible')) {
-        $('#help_dialog').slideUp();
-    } else {
-        $('#help_dialog').slideDown();
-    }
-}
-
-
 const storeOptions = () => {
     localStorage.setItem(defaultOptions.storageName, JSON.stringify(_.omit(options, dontSave)));
-}
-
-const storeWorkspace = () => {
-     localStorage.setItem(`${defaultOptions.storageName}_WS`, JSON.stringify(workspace));
 }
 
 const loadOptions = () => {
@@ -654,16 +579,6 @@ const loadOptions = () => {
     } else {
         options = _.assignIn({}, defaultOptions, JSON.parse(localStorage.getItem(defaultOptions.storageName)));
     }
-}
-
-const loadWorkspace = () => {
-     if (!localStorage.getItem(`${defaultOptions.storageName}_WS`)) {
-         workspace = _.assignIn({}, _.clone(defaultWorkspace));
-         workspace.frames.push(getEmptyFrame());
-         storeWorkspace();
-     } else {
-         workspace = _.assignIn({}, _.clone(defaultWorkspace), JSON.parse(localStorage.getItem(`${defaultOptions.storageName}_WS`)));
-     }
 }
 
 const updateOptions = () => {
@@ -705,41 +620,29 @@ const saveOptions = () => {
     drawTimeline();
 }
 
+// ************************************ WORKSPACE STORAGE
 
-// *********************************** EXPORT
-
-
-const templateChange = () => {
-    updateOptions();
-    exportData();
+const storeWorkspace = () => {
+     localStorage.setItem(`${defaultOptions.storageName}_WS`, JSON.stringify(workspace));
 }
 
-const toggleExport = () => {
-    closeAllDialogs();
-    if ($('#export_dialog').is(':visible')) {
-        $('#export_dialog').slideUp();
-    } else {
-        refreshOptions();
-        exportData();
-        $('#export_dialog').slideDown();
-    }
+const loadWorkspace = () => {
+     if (!localStorage.getItem(`${defaultOptions.storageName}_WS`)) {
+         workspace = _.assignIn({}, _.clone(defaultWorkspace));
+         workspace.frames.push(getEmptyFrame());
+         storeWorkspace();
+     } else {
+         workspace = _.assignIn({}, _.clone(defaultWorkspace), JSON.parse(localStorage.getItem(`${defaultOptions.storageName}_WS`)));
+     }
 }
+
+// *********************************** EXPORT / LOAD / SAVE
 
 const exportData = () => {
     const template = exportTemplates[$('#opt_lastTemplate_i').val()];
-
-    //try {
-        const body = parseTemplate(template);
-        $('#export_frame').html(body);
-        
-    //} catch (error) {
-//        $('#export_frame').html('Error parsing template');
-//        console.log(error);
-    //}
-    
+    const body = parseTemplate(template);
+    $('#export_frame').html(body);
 }
-
-
 
 const parseTemplate = (template) => {
    
@@ -836,7 +739,6 @@ const parseTemplate = (template) => {
 }
 
 const saveFile = () => {
-
     const name = prompt('set filename of saved file:', 'mysprites.spr');
     let binList = [];
     let listByte = 0;
@@ -867,10 +769,8 @@ const openFile = function (event) {
     dropFile(file)
 };
 
-
 const parseBinary = (binData) => {
 
-    //console.log(binData);
     const parseError = msg => { alert(msg); }
 
     const areEqual = (a1,a2) => {
@@ -981,18 +881,37 @@ const dropFile = function (file) {
             if (newWorkspace) {
                 newCanvas();
                 workspace = newWorkspace;
-                updateColors();
                 storeOptions();
-                drawTimeline();
-                drawingEnded();
+                updateScreen()
             }
         };
         reader.readAsArrayBuffer(file);
     }
 }
 
-const closeAllDialogs = () => {
-    $('div.dialog:visible').slideUp();
+// ************************************ TIMELINE OPERATIONS
+
+const jumpToFrame = f => {
+    if (workspace.frames[f]) {
+        workspace.selectedFrame = f;
+        updateScreen();
+    }
+}
+
+const jumpToNextFrame = () => {
+    workspace.selectedFrame++;
+    if (workspace.selectedFrame >= workspace.frames.length) {
+        workspace.selectedFrame = 0;    
+    }
+    updateScreen();
+}
+
+const jumpToPrevFrame = () => {
+    workspace.selectedFrame--;
+    if (workspace.selectedFrame < 0) {
+        workspace.selectedFrame = workspace.frames.length - 1;    
+    }
+    updateScreen();
 }
 
 const deleteAll = () => {
@@ -1001,11 +920,9 @@ const deleteAll = () => {
         workspace.frames.length = 1;
         workspace.selectedFrame = 0;
         clearFrame();
-        updateColors();
-        drawTimeline();
+        updateScreen()
     }
 }
-
 
 const clearFrame = () => {
     if (player) { return false };
@@ -1015,6 +932,66 @@ const clearFrame = () => {
     }
     drawingEnded();
 }
+
+const startPlayer = () => {
+    if ((player == 0) && !playerInterval) {
+        player = 1;
+        playerInterval = setInterval(jumpToNextFrame,options.animationSpeed*20);
+        $("#timeline li").first().addClass('red');
+    }
+}
+
+const stopPlayer = () => {
+    player = 0;
+    clearInterval(playerInterval);
+    $("#timeline li").first().removeClass('red');
+    playerInterval = null;
+}
+
+const cloneFrame = () => {
+    if (player) { return false };    
+    const newframe = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
+    workspace.frames.splice(workspace.selectedFrame,0,newframe);
+    jumpToFrame(workspace.selectedFrame+1);
+}
+
+const animFrameLeft = () => {
+    if (player) { return false };    
+    if (workspace.selectedFrame == 0) {return false}
+    const newframe = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
+    workspace.frames.splice(workspace.selectedFrame,1);
+    workspace.frames.splice(workspace.selectedFrame-1,0,newframe);
+    jumpToFrame(workspace.selectedFrame-1);
+}
+
+const animFrameRight = () => {
+    if (player) { return false };    
+    if (workspace.selectedFrame == workspace.frames.length-1) {return false}
+    const newframe = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
+    workspace.frames.splice(workspace.selectedFrame,1);
+    workspace.frames.splice(workspace.selectedFrame+1,0,newframe);
+    jumpToFrame(workspace.selectedFrame+1);
+}
+
+const addFrame = () => {
+    if (player) { return false };    
+    const newframe = getEmptyFrame();
+    workspace.frames.splice(workspace.selectedFrame+1,0,newframe);
+    jumpToFrame(workspace.selectedFrame+1);
+}
+
+const delFrame = () => {
+    if (player) { return false };    
+    if (workspace.frames.length>1) {
+        workspace.frames.splice(workspace.selectedFrame,1);
+        if (!workspace.frames[workspace.selectedFrame]) {
+            workspace.selectedFrame--;
+        }
+        jumpToFrame(workspace.selectedFrame);
+    }
+}
+
+// ************************************ FRAME OPERATION
 
 const copyColors = () => {
     if (player) { return false };
@@ -1029,7 +1006,6 @@ const pasteColors = () => {
     drawingEnded();
 }
 
-
 const copyFrame = () => {
     if (player) { return false };
     workspace.clipBoard.frame = _.cloneDeep(currentFrame());
@@ -1043,78 +1019,7 @@ const pasteFrame = () => {
     drawingEnded();
 }
 
-const keyPressed = e => {
-    switch (e.code) {
-        case 'Digit1':
-                colorClicked(1);
-            break;
-        case 'Digit2':
-                colorClicked(2);
-        break;
-        case 'Digit3':
-                colorClicked(3);
-        break;
-        case 'Digit4':
-        case 'Digit0':
-        case 'Backquote':
-                colorClicked(0);
-        break;
-        case 'Space':
-            if (player) {
-                stopPlayer();
-            } else {
-                startPlayer();
-            }
-        break;
-        case 'ArrowRight': 
-            if (!player) {
-                jumpToNextFrame();
-            }
-        break;
-        case 'ArrowLeft': 
-            if (!player) {
-                jumpToPrevFrame();
-            }
-        break;
-        case 'Escape':
-            closeAllDialogs();
-        break;
-        case 'Home':
-            workspace.selectedFrame = 0;
-            drawTimeline();
-            drawingEnded();
-        break;        
-        case 'End':
-            workspace.selectedFrame = workspace.frames.length-1;
-            drawTimeline();
-            drawingEnded();
-        break;        
-        case 'Enter':
-            if ($('#options_dialog').is(':visible')) {
-                saveOptions();
-            }
-        break;
-        case 'BracketLeft':
-            copyColors();
-        break;              
-        case 'BracketRight':
-            if (pasteColors()) {
-                drawTimeline();
-                updateColors();
-                drawingEnded();
-            };
-        break;              
-
-        default:
-            break;
-    }
-    console.log(e.code);
-}
-
-const flip8Bits = (b) => {
-    return reversedBytes[b];
-}
-
+const flip8Bits = (b) => reversedBytes[b];
 
 const flipHFrame = () => {
     if (player) { return false };
@@ -1174,6 +1079,7 @@ const moveFrameRight = () => {
     }
     drawingEnded();
 }
+
 const moveFrameUp = () => {
     if (player) { return false };
     workspace.frames[workspace.selectedFrame].data[0].length = options.spriteHeight;
@@ -1184,6 +1090,7 @@ const moveFrameUp = () => {
     workspace.frames[workspace.selectedFrame].data[1].push(options.wrapEditor?b1:0);
     drawingEnded();
 }
+
 const moveFrameDown = () => {
     if (player) { return false };
     workspace.frames[workspace.selectedFrame].data[0].length = options.spriteHeight;
@@ -1206,7 +1113,6 @@ const heightDown = () => {
 
 const heightUp = () => {
     if (player) { return false };
-    
     const s0 = workspace.frames[workspace.selectedFrame].data[0]
     const s1 = workspace.frames[workspace.selectedFrame].data[1]
     workspace.frames[workspace.selectedFrame].data[0] = _.flatMap(s0,v=>[v,v]);
@@ -1215,7 +1121,71 @@ const heightUp = () => {
     drawTimeline();
 }
 
+// ************************************ KEY BINDINGS
 
+const keyPressed = e => {
+    switch (e.code) {
+        case 'Digit1':
+                colorClicked(1);
+            break;
+        case 'Digit2':
+                colorClicked(2);
+        break;
+        case 'Digit3':
+                colorClicked(3);
+        break;
+        case 'Digit4':
+        case 'Digit0':
+        case 'Backquote':
+                colorClicked(0);
+        break;
+        case 'Space':
+            if (player) {
+                stopPlayer();
+            } else {
+                startPlayer();
+            }
+        break;
+        case 'ArrowRight': 
+            if (!player) {
+                jumpToNextFrame();
+            }
+        break;
+        case 'ArrowLeft': 
+            if (!player) {
+                jumpToPrevFrame();
+            }
+        break;
+        case 'Escape':
+            closeAllDialogs();
+        break;
+        case 'Home':
+            workspace.selectedFrame = 0;
+            updateScreen()
+            break;        
+        case 'End':
+            workspace.selectedFrame = workspace.frames.length-1;
+            updateScreen()
+            break;        
+        case 'Enter':
+            if ($('#options_dialog').is(':visible')) {
+                saveOptions();
+            }
+        break;
+        case 'BracketLeft':
+            copyColors();
+        break;              
+        case 'BracketRight':
+            if (pasteColors()) {
+                updateScreen()
+            };
+        break;              
+
+        default:
+            break;
+    }
+    //console.log(e.code);
+}
 
 
 // ************************************************  ON START INIT 
@@ -1230,8 +1200,6 @@ $(document).ready(function () {
     app.addMenuItem('Save', saveFile, 'appmenu', 'Saves Display List as a binary file');
     app.addMenuItem('Export', toggleExport, 'appmenu', 'Exports Display List to various formats');
     app.addSeparator('appmenu');
-    // app.addMenuItem('Button', drawEditor, 'appmenu', 'does smth');
-    // app.addSeparator('appmenu');
     app.addMenuItem('Options', toggleOptions, 'appmenu', 'Shows Options');
     app.addSeparator('appmenu');
     app.addMenuItem('Help', toggleHelp, 'appmenu', 'Shows Help');
@@ -1256,8 +1224,6 @@ $(document).ready(function () {
 
     app.addMenuItem('⏵︎', startPlayer, 'timemenu', 'Starts Animation [Space]');
     app.addMenuItem('⏹︎', stopPlayer, 'timemenu', 'Stops Animation [Space]');
-    // app.addMenuItem('-', null, 'timemenu', 'Adds new empty frame');
-    // app.addMenuItem('+', null, 'timemenu', 'Adds new empty frame');
     app.addSeparator('timemenu');
     app.addMenuItem('Add', addFrame, 'timemenu', 'Adds new empty frame');
     app.addMenuItem('Clone', cloneFrame, 'timemenu', 'Adds copy of frame');
@@ -1267,7 +1233,6 @@ $(document).ready(function () {
     app.addMenuItem('⏹︎🡆', animFrameRight, 'timemenu', 'Moves current frame right');
     app.addSeparator('timemenu');
     app.addMenuItem('Delete All', deleteAll, 'timemenu', 'Clears and deletes all frames');
-    
 
     $('.colorbox').bind('mousedown',(e)=> {
         colorClicked(Number(_.last(e.target.id)));
@@ -1282,15 +1247,12 @@ $(document).ready(function () {
     }
 
     $("#main").bind('mousedown',()=>{$(".palette").remove()})
+    document.addEventListener('keydown', keyPressed);
+    $('html').on('dragover',e=>{e.preventDefault()});
 
     loadWorkspace();
     newCanvas();
-    drawEditor();
-    updateColors();
-    
-    drawTimeline();
+    updateScreen();
 
-    document.addEventListener('keydown', keyPressed);
-    $('html').on('dragover',e=>{e.preventDefault()});
 
 });
