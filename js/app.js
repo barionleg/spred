@@ -824,11 +824,11 @@ const parseBinary = (binData) => {
         }
         wrkspc.backgroundColor = binData[binPtr++];
         for(let f=0;f<17;f++) {
-            wrkspc.frames[f].data[0] = binData.subarray(binPtr,binPtr+48);
+            wrkspc.frames[f].data[0] = Array.from(binData.subarray(binPtr,binPtr+48));
             binPtr += 48;
         }
         for(let f=0;f<17;f++) {
-            wrkspc.frames[f].data[1] = binData.subarray(binPtr,binPtr+48);
+            wrkspc.frames[f].data[1] = Array.from(binData.subarray(binPtr,binPtr+48));
             binPtr += 48;
         }
         wrkspc.selectedFrame = binData[binPtr++];
@@ -866,11 +866,11 @@ const parseBinary = (binData) => {
             wrkspc.frames[f].colors.push(binData[binPtr++]);
         }
         for(let f=0;f<aplFrames;f++) {
-            wrkspc.frames[f].data[0] = binData.subarray(binPtr,binPtr+options.spriteHeight);
+            wrkspc.frames[f].data[0] = Array.from(binData.subarray(binPtr,binPtr+options.spriteHeight));
             binPtr += options.spriteHeight;
         }
         for(let f=0;f<aplFrames;f++) {
-            wrkspc.frames[f].data[1] = binData.subarray(binPtr,binPtr+options.spriteHeight);
+            wrkspc.frames[f].data[1] = Array.from(binData.subarray(binPtr,binPtr+options.spriteHeight));
             binPtr += options.spriteHeight;
         }
         wrkspc.frames.length = aplFrames;
@@ -898,6 +898,7 @@ const dropFile = function (file) {
                 newCanvas();
                 workspace = newWorkspace;
                 refreshOptions();
+                updateOptions();
                 updateScreen()
             }
         };
@@ -931,8 +932,8 @@ const jumpToPrevFrame = () => {
 }
 
 const deleteAll = () => {
+    if (player) { return false };
     if (confirm('Do you really want to delete and erase all frames?')) {
-        if (player) { return false };
         workspace.frames.length = 1;
         workspace.selectedFrame = 0;
         clearFrame();
@@ -1111,6 +1112,7 @@ const moveFrameDown = () => {
     if (player) { return false };
     workspace.frames[workspace.selectedFrame].data[0].length = options.spriteHeight;
     workspace.frames[workspace.selectedFrame].data[1].length = options.spriteHeight;
+    console.log(workspace.frames[workspace.selectedFrame].data[0]);
     const b0 = workspace.frames[workspace.selectedFrame].data[0].pop();
     const b1 = workspace.frames[workspace.selectedFrame].data[1].pop();
     workspace.frames[workspace.selectedFrame].data[0].unshift(options.wrapEditor?b0:0);
