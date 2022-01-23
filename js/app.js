@@ -1196,7 +1196,7 @@ $(document).ready(function () {
     const app = gui(options, dropFile);
     refreshOptions();
     $('title').append(` v.${options.version}`);
-    app.addMenuFileOpen('Load', openFile, 'appmenu', 'Loads Display List binary file');
+    app.addMenuFileOpen('Load', openFile, 'appmenu', 'Loads Display List binary file', '.spr,.asl');
     app.addMenuItem('Save', saveFile, 'appmenu', 'Saves Display List as a binary file');
     app.addMenuItem('Export', toggleExport, 'appmenu', 'Exports Display List to various formats');
     app.addSeparator('appmenu');

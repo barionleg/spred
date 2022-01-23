@@ -13,8 +13,9 @@ const gui = (options, dropHandler) => {
         return li;
     }
 
-    const addMenuFileOpen = (name, handler, parent = 'menulist', hint) => {
+    const addMenuFileOpen = (name, handler, parent = 'menulist', hint, accept) => {
         const inp = $(`<input type='file' id='fdialog${fileDialogs}' class='fileinput'>`);
+        if (accept) {inp.attr('accept',accept)}
         const label = $('<label/>').attr('for', `fdialog${fileDialogs}`).html(name).addClass('menuitem');
         inp.change(handler);
         if (hint) label.attr('title', hint);
@@ -47,7 +48,6 @@ const gui = (options, dropHandler) => {
     };
 
     $('html').on("drop", function (event) {
-        console.log('DOPR');
         event.preventDefault();
         event.stopPropagation();
         if (event.originalEvent.dataTransfer.files) {
