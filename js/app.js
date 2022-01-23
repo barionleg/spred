@@ -506,7 +506,6 @@ const toggleDiv = (divId) => {
 }
 
 const toggleExport = () => {
-    templateChange();
     if (toggleDiv('#export_dialog')) {
         refreshOptions();
         exportData();
@@ -898,7 +897,7 @@ const dropFile = function (file) {
             if (newWorkspace) {
                 newCanvas();
                 workspace = newWorkspace;
-                storeOptions();
+                refreshOptions();
                 updateScreen()
             }
         };
@@ -1203,12 +1202,6 @@ const keyPressed = e => {
             case 'Enter':
                 if ($('#options_dialog').is(':visible')) {
                     saveOptions();
-                }
-                if ($('#export_dialog').is(':visible')) {
-                    if (validateOptions()) {
-                        updateOptions()
-                    }
-                    exportData();
                 }
             break;
 
