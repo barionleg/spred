@@ -14,7 +14,7 @@ const gui = (options, dropHandler) => {
     }
 
     const addMenuFileOpen = (name, handler, parent = 'menulist', hint, accept) => {
-        const inp = $(`<input type='file' id='fdialog${fileDialogs}' class='fileinput'>`);
+        const inp = $(`<input type='file' id='fdialog${fileDialogs}' class='fileinput' onclick='this.value=null'>`);
         if (accept) {inp.attr('accept',accept)}
         const label = $('<label/>').attr('for', `fdialog${fileDialogs}`).html(name).addClass('menuitem');
         inp.change(handler);

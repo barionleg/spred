@@ -1,10 +1,11 @@
 const GRID_COLOR = 'rgba(200,200,200,0.3)';
 const MAX_FILESIZE = 64 * 1024;
 const aplHeader = [0x9a,0xf8,0x39,0x21];
+const apl2Header = [0x45,0x64,0x52,0x32];
 const sprHeader = [0x53,0x70,0x72,0x21];
 const defaultOptions = {
-    version: '0.7.10',
-    storageName: 'SprEdStore0710',
+    version: '0.7.11',
+    storageName: 'SprEdStore0711',
     aspect: 1,
     spriteHeight: 16,
     spriteGap: 0,
@@ -806,9 +807,10 @@ const parseBinary = (binData) => {
 
     const binSize = binData.length;
     let binPtr = 0;
-    let id = 0;
-    
-    if (areEqual(aplHeader,binData.subarray(0,4))) {               // PARSE APL 
+    let id = 0;    
+
+    const parseAPL = fsize => {
+        fsize = fsize || 48;
         const wrkspc = _.clone(defaultWorkspace);
         wrkspc.frames = [];
         binPtr = 4;
@@ -827,20 +829,23 @@ const parseBinary = (binData) => {
         }
         wrkspc.backgroundColor = binData[binPtr++];
         for(let f=0;f<17;f++) {
-            wrkspc.frames[f].data[0] = Array.from(binData.subarray(binPtr,binPtr+48));
-            binPtr += 48;
+            wrkspc.frames[f].data[0] = Array.from(binData.subarray(binPtr,binPtr+fsize));
+            binPtr += fsize;
         }
         for(let f=0;f<17;f++) {
-            wrkspc.frames[f].data[1] = Array.from(binData.subarray(binPtr,binPtr+48));
-            binPtr += 48;
+            wrkspc.frames[f].data[1] = Array.from(binData.subarray(binPtr,binPtr+fsize));
+            binPtr += fsize;
         }
         wrkspc.selectedFrame = binData[binPtr++];
         wrkspc.selectedColor = binData[binPtr++];
         options.animationSpeed = binData[binPtr++];
         options.palette = (binData[binPtr++]==1)?'NTSC':'PAL';
         wrkspc.frames.length = aplFrames;
-        return wrkspc;
-
+        return wrkspc;      
+    }
+    
+    if (areEqual(aplHeader,binData.subarray(0,4))) {               // PARSE APL 
+        return parseAPL();
         
     } else if (areEqual(sprHeader,binData.subarray(0,4))) {            // PARSE SPR 
 
@@ -879,6 +884,10 @@ const parseBinary = (binData) => {
         wrkspc.frames.length = aplFrames;
         return wrkspc;
 
+    }  else if (areEqual(apl2Header,binData.subarray(0,4))) {    // PARSE APL+ (52 rows)
+        
+        return parseAPL(52);
+
     } else {
         parseError('unknown format!')
         return false;
@@ -902,8 +911,9 @@ const dropFile = function (file) {
                 workspace = newWorkspace;
                 refreshOptions();
                 updateOptions();
-                updateScreen()
+                updateScreen();
             }
+            file.name = '';
         };
         reader.readAsArrayBuffer(file);
     }
