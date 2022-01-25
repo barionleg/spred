@@ -30,7 +30,7 @@ const exportTemplates = [
     {
         name:'Other Assemblers',
         block: {
-            prefix: '; SPRITE DATA\n; frames, height, gap\n  dta #frames#,#height#,#gap#\n\n', postfix: ''
+            prefix: '; SPRITE DATA\n; frames, height, gap\n  .BYTE #frames#,#height#,#gap#\n\n', postfix: ''
         },
         colors: {
             prefix: '; SPRITE COLORS #s#\n', postfix: ''
