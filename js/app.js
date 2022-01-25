@@ -4,8 +4,8 @@ const aplHeader = [0x9a,0xf8,0x39,0x21];
 const apl2Header = [0x45,0x64,0x52,0x32];
 const sprHeader = [0x53,0x70,0x72,0x21];
 const defaultOptions = {
-    version: '0.7.11',
-    storageName: 'SprEdStore0711',
+    version: '0.7.12',
+    storageName: 'SprEdStore0712',
     aspect: 1,
     spriteHeight: 16,
     spriteGap: 0,
@@ -713,11 +713,15 @@ const parseTemplate = (template) => {
     const stepByte = (last) => {
         byteInRow++;
         if (byteInRow == options.bytesPerLine || last) {
+            if (template.line.preserveLastSeparator) {
+                lineBody += template.byte.separator 
+            }
             byteInRow = 0;
             pushLine(lineBody, last);
             lineBody = '';
         } else lineBody += template.byte.separator;
     }
+
     const pushByte = (b, last) => {
         lineBody += formatByte(b);
         stepByte(last);
@@ -1125,7 +1129,6 @@ const moveFrameDown = () => {
     if (player) { return false };
     workspace.frames[workspace.selectedFrame].data[0].length = options.spriteHeight;
     workspace.frames[workspace.selectedFrame].data[1].length = options.spriteHeight;
-    console.log(workspace.frames[workspace.selectedFrame].data[0]);
     const b0 = workspace.frames[workspace.selectedFrame].data[0].pop();
     const b1 = workspace.frames[workspace.selectedFrame].data[1].pop();
     workspace.frames[workspace.selectedFrame].data[0].unshift(options.wrapEditor?b0:0);

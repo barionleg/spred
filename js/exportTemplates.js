@@ -218,7 +218,7 @@ const exportTemplates = [
     {
         name:'Raw CSV one liner',
         block: {
-            prefix: '#frames#,#height#,#gap#', postfix: ''
+            prefix: '#frames#,#height#,#gap#,', postfix: ''
         },
         colors: {
             prefix: '', postfix: ''
@@ -230,7 +230,7 @@ const exportTemplates = [
             prefix: '', postfix: ''
         },
         line: {
-            numbers: false, prefix: '', postfix: ""
+            numbers: false, prefix: '', postfix: "", preserveLastSeparator: true
         },
         byte: {
             separator: ',',
