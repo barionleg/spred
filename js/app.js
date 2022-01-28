@@ -1424,6 +1424,7 @@ $(document).ready(function () {
     const app = gui(options, dropFile);
     refreshOptions();
     $('title').append(` v.${options.version}`);
+    
     app.addMenuFileOpen('Load', openFile, 'appmenu', 'Loads Display List binary file', '.spr,.apl');
     app.addMenuItem('Save', saveFile, 'appmenu', 'Saves Display List as a binary file');
     app.addMenuItem('Export', toggleExport, 'appmenu', 'Exports Display List to various formats');
@@ -1437,6 +1438,9 @@ $(document).ready(function () {
     app.addSeparator('appmenu');
     const ver = $('<div/>').attr('id','ver').html(`SprEd v.${options.version}`);
     $('#appmenu').append(ver);
+    const bh = $('<div/>').attr('id','bathub').on('mousedown',()=>{window.location.href='https://bocianu.gitlab.io/bathub/'});
+    $('#appmenu').append(bh);
+
 
     app.addMenuItem('Clear', saveUndo('clear frame', clearFrame), 'framemenu', 'Clears current frame');
     app.addMenuItem('Copy', copyFrame, 'framemenu', 'Copies from current frame');

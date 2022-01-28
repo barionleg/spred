@@ -1,0 +1,16 @@
+9a f8 39 21
+frames
+height
+gap 
+16xc0 
+unused
+16xc1
+unusec
+bgcolor
+48xf0_0
+...
+48xf1_15
+selectedFrame,
+selectedColor,
+animSpeed,
+Pal=0, NTSC=1
