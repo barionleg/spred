@@ -4,8 +4,8 @@ const aplHeader = [0x9a,0xf8,0x39,0x21];
 const apl2Header = [0x45,0x64,0x52,0x32];
 const sprHeader = [0x53,0x70,0x72,0x21];
 const defaultOptions = {
-    version: '0.8.0',
-    storageName: 'SprEdStore08',
+    version: '0.8.1',
+    storageName: 'SprEdStore081',
     undoLevels: 128,
     lineResolution: 1,
     spriteHeight: 16,
@@ -1015,8 +1015,9 @@ const dropFile = function (file) {
                 refreshOptions();
                 updateOptions();
                 updateScreen();
-                _.remove(undos);
-                _.remove(redos);
+                undos = [];
+                redos = [];
+                storeUndos();
             }
             file.name = '';
         };
@@ -1076,7 +1077,7 @@ const clearFrame = () => {
 }
 
 const startPlayer = () => {
-    if ((player == 0) && !playerInterval) {
+    if ((player == 0) && !playerInterval && (workspace.frames.length>1)) {
         player = 1;
         playerInterval = setInterval(jumpToNextFrame,options.animationSpeed*20);
         $("#timeline li").first().addClass('red');
