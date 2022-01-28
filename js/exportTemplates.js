@@ -22,7 +22,7 @@ const exportTemplates = [
         },
         byte: {
             separator: ', ',
-            hexPrefix: '$', addrPrefix: 'a(', addrPostfix: ')'
+            binPrefix: '%', hexPrefix: '$', addrPrefix: 'a(', addrPostfix: ')'
         }
     },    
 
@@ -46,8 +46,7 @@ const exportTemplates = [
             prefix: '  .BYTE ', postfix: '\n'
         },
         byte: {
-            separator: ', ',
-            hexPrefix: '$'
+            separator: ', ', binPrefix: '%', hexPrefix: '$'
         }
     },    
 
@@ -71,8 +70,7 @@ const exportTemplates = [
             prefix: '.BYTE ', postfix: '\n'
         },
         byte: {
-            separator: ',',
-            hexPrefix: '$'
+            separator: ',', hexPrefix: '$', binPrefix: '%'
         }
     },        
 
@@ -94,8 +92,7 @@ const exportTemplates = [
             numbers: false, prefix: '    ', postfix: ",\n", lastpostfix: "\n"
         },
         byte: {
-            separator: ', ',
-            hexPrefix: '$'
+            separator: ', ', hexPrefix: '$', binPrefix: '%', 
         }
     },
 
@@ -117,8 +114,7 @@ const exportTemplates = [
             numbers: false, prefix: '  ', postfix: "\n"
         },
         byte: {
-            separator: ' ',
-            hexPrefix: '$'
+            separator: ' ', hexPrefix: '$'
         }
     },
 
@@ -140,8 +136,7 @@ const exportTemplates = [
             numbers: false, prefix: '    ', postfix: ",\n", lastpostfix: "\n"
         },
         byte: {
-            separator: ', ',
-            hexPrefix: '0x'
+            separator: ', ', hexPrefix: '0x', binPrefix: '0b', 
         }
     },
 
