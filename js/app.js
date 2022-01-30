@@ -337,8 +337,8 @@ const getRGBOn = (frame, col, row) => {
 
 const setColorOn = (col, row, color) => {
     let c = getColorOn(workspace.selectedFrame, col, row);
-    let c01 = c & 3;
-    let c23 = c<4?0:c;
+    let c01 = 0;
+    let c23 = 0;
     const [mp0, mp1, mm0, mm1, mp2, mp3, mm2, mm3] = getMasks(col);
     const currentFrame = workspace.frames[workspace.selectedFrame];
     if (!beforeDrawingState) { beforeDrawingState = _.cloneDeep(workspace) }
@@ -356,9 +356,7 @@ const setColorOn = (col, row, color) => {
     }
     if (color == 0) {
         clearPixel01();
-        clearPixel231();
-        c01 = 0;
-        c23 = 0;
+        clearPixel23();
     }
     if ((mp0 || mm0) && color == 1) {
         clearPixel01();
@@ -404,9 +402,10 @@ const setColorOn = (col, row, color) => {
             c23 = (mp2 || mm2 ? 5 : 0) | (mp3 || mm3 ? 6 : 0);
         }
     }
-    c = (mp0 || mm0 || mp1 || mm1 )!=0?c01:c;
+    c = c|c01?c01:c;
+
     if (isPlayer23Mode()) {
-        c = (c==0)?c23:c; 
+         c = (c==0)?c23:c; 
     }
     drawBlock(col, row, getColorRGB(workspace.selectedFrame, c));
 }
