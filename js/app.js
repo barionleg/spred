@@ -99,6 +99,10 @@ const isPlayer23Mode = () => {
     return ((options.mergeMode & 4) == 4)
 }
 
+const playerCount = () => {
+    return isPlayer23Mode() ? 4 : 2;
+}
+
 function decimalToHex(d, padding) {
     let hex = Number(d).toString(16);
     padding = typeof (padding) === "undefined" || padding === null ? padding = 2 : padding;
@@ -117,7 +121,6 @@ function decimalToBin(d, padding) {
     }
     return bin;
 }
-
 
 const userIntParse = (udata) => {
     if (_.isNull(udata)) return null;
@@ -149,7 +152,7 @@ const getEmptyFrame = () => {
         colors: [0x24, 0xc8, 0x86, 0xea]
     }
     for (let r = 0; r < options.spriteHeight; r++) {
-        for (p=0;p<4;p++) {    
+        for (p = 0; p < 4; p++) {
             frame.player[p][r] = 0;
             frame.missile[p][r] = 0;
         }
@@ -234,7 +237,6 @@ const updateColors = colors => {
     } else {
         $('.p23only').addClass('none');
     }
-    
     colorClicked(workspace.selectedColor);
 }
 
@@ -276,7 +278,7 @@ const getByteRGB = (cval) => {
 }
 
 const getMasks = col => {
-    const mp0 = 0b10000000 >> col;
+    const mp0 = col > 8 ? 0 : 0b10000000 >> col;
     const mp1offset = col - options.spriteGap01;
     const mp1 = mp1offset < 0 ? 0 : 0b10000000 >> mp1offset;
     const mm0offset = col - 8;
@@ -296,19 +298,19 @@ const getMasks = col => {
     const missile = isMissileMode();
     const p23 = isPlayer23Mode();
     return [
-        mp0, 
-        mp1, 
-        missile?mm0:0, 
-        missile?mm1:0,
-        p23?mp2:0,
-        p23?mp3:0,
-        p23?(missile?mm2:0):0, 
-        p23?(missile?mm3:0):0
+        mp0,
+        mp1,
+        missile ? mm0 : 0,
+        missile ? mm1 : 0,
+        p23 ? mp2 : 0,
+        p23 ? mp3 : 0,
+        p23 ? (missile ? mm2 : 0) : 0,
+        p23 ? (missile ? mm3 : 0) : 0
     ]
 }
 
 const getColorOn = (frame, col, row) => {
-    let c0,c1,c2,c3;
+    let c0, c1, c2, c3;
     const b0 = workspace.frames[frame].player[0][row];
     const b1 = workspace.frames[frame].player[1][row];
     const bm0 = workspace.frames[frame].missile[0][row];
@@ -326,7 +328,7 @@ const getColorOn = (frame, col, row) => {
     c23 = c2 | c3;
     let c = c01;
     if (isPlayer23Mode()) {
-        if (c==0) { c = c23 } // ***************** p01 has higher priority
+        if (c == 0) { c = c23 } // ***************** p01 has higher priority
     }
     return c
 }
@@ -337,8 +339,8 @@ const getRGBOn = (frame, col, row) => {
 
 const setColorOn = (col, row, color) => {
     let c = getColorOn(workspace.selectedFrame, col, row);
-    let c01 = c<4?c:0;
-    let c23 = c>3?c:0;
+    let c01 = c < 4 ? c : 0;
+    let c23 = c > 3 ? c : 0;
     const [mp0, mp1, mm0, mm1, mp2, mp3, mm2, mm3] = getMasks(col);
     const currentFrame = workspace.frames[workspace.selectedFrame];
     if (!beforeDrawingState) { beforeDrawingState = _.cloneDeep(workspace) }
@@ -402,10 +404,10 @@ const setColorOn = (col, row, color) => {
             c23 = (mp2 || mm2 ? 5 : 0) | (mp3 || mm3 ? 6 : 0);
         }
     }
-    c = c01?c01:c;
+    c = c01 ? c01 : c;
 
     if (isPlayer23Mode()) {
-         c = (c==0)?c23:c; 
+        c = (c == 0) ? c23 : c;
     }
     drawBlock(col, row, getColorRGB(workspace.selectedFrame, c));
 }
@@ -427,8 +429,8 @@ const setNewColor = (c, cval) => {
             break;
         case 6:
             workspace.frames[frame].colors[3] = cval;
-                break;
-        }
+            break;
+    }
     storeWorkspace();
 }
 
@@ -469,7 +471,6 @@ const showPalette = c => {
             cval += 2;
         }
         $("#color_box").append(pal);
-
     }
 }
 
@@ -482,8 +483,6 @@ const pickerClicked = (e) => {
 }
 
 // *********************************** EDITOR OPERATIONS
-
-
 
 const sameCell = (c, n) => {
     if (c.row == undefined) {
@@ -550,11 +549,10 @@ const onMouseOut = (e) => {
 
 const getWidthMultiplier = () => options.squarePixel ? 1 : 1.2;
 
-
 const newCanvas = () => {
     editorWindow.columns01 = spriteWidthPerMode[options.mergeMode] + options.spriteGap01;
     editorWindow.columns23 = spriteWidthPerMode[options.mergeMode] + options.spriteGap23;
-    editorWindow.columns = isPlayer23Mode()?Math.max(editorWindow.columns01, editorWindow.columns23 + options.pairGap):editorWindow.columns01;
+    editorWindow.columns = isPlayer23Mode() ? Math.max(editorWindow.columns01, editorWindow.columns23 + options.pairGap) : editorWindow.columns01;
     editorWindow.cwidth = getWidthMultiplier() * zoomCellSize[options.cellSize];
     editorWindow.cxoffset = editorWindow.cwidth + options.showGrid;
     editorWindow.cheight = Math.floor(zoomCellSize[options.cellSize] / options.lineResolution);
@@ -643,9 +641,7 @@ const drawTimeline = () => {
         if (f == workspace.selectedFrame) {
             framebox.addClass('currentFrame');
         }
-
         $('#framelist').append(framebox);
-        //console.log(f,frame);
     });
 }
 
@@ -658,7 +654,6 @@ const updateScreen = () => {
 const frameboxClicked = e => {
     if (animationOn) { return false };
     const f = Number(_.last(_.split(e.target.id, '_')));
-    //console.log(e.target);
     jumpToFrame(f);
 }
 
@@ -768,16 +763,17 @@ const validateOptions = () => {
     if (!valIntInput('lineStep')) return false;
     if (!valIntInput('startingLine')) return false;
     if (!valIntInput('cellSize')) return false;
+    return true;
+}
 
+const clampOptions = () => {
     clampOption('bytesPerLine', 1, 100000);
     clampOption('spriteHeight', 1, 128);
-    clampOption('spriteGap01', 0, 10);
-    clampOption('spriteGap23', 0, 10);
-    clampOption('pairGap', 0, 20);
+    clampOption('spriteGap01', 0, isMissileMode() ? 10 : 8);
+    clampOption('spriteGap23', 0, isMissileMode() ? 10 : 8);
+    clampOption('pairGap', 0, isMissileMode() ? 20 : 16);
     clampOption('animationSpeed', 1, 100);
-    clampOption('cellSize', 0, zoomCellSize.length-1);
-
-    return true;
+    clampOption('cellSize', 0, zoomCellSize.length - 1);
 }
 
 const storeOptions = () => {
@@ -819,6 +815,8 @@ const updateOptions = () => {
 
 const saveOptions = () => {
     if (validateOptions()) {
+        updateOptions();
+        clampOptions();
         updateOptions();
         closeAllDialogs();
     }
@@ -915,8 +913,6 @@ const parseTemplate = (template) => {
             .replace(/#maxframes#/g, formatByte(workspace.frames.length - 1))
             .replace(/#-1#/g, options.startingLine - 1)
             .replace(/#-2#/g, options.startingLine - 2)
-
-
     }
 
     const getBlock = (block, blockTemp) => {
@@ -1001,7 +997,7 @@ const saveFile = () => {
     binList.push(workspace.frames.length, options.spriteHeight, options.spriteGap01);
     binList.push(_.map(workspace.frames, f => f.colors[0]));
     binList.push(_.map(workspace.frames, f => f.colors[1]));
-    for (p=0;p<2;p++) {
+    for (p = 0; p < 2; p++) {
         _.each(workspace.frames, f => { f.player[p].length = options.spriteHeight; binList.push(f.player[p]) });
     }
     binList = _.flatMap(binList);
@@ -1118,9 +1114,7 @@ const parseBinary = (binData) => {
         return wrkspc;
 
     } else if (areEqual(apl2Header, binData.subarray(0, 4))) {    // PARSE APL+ (52 rows)
-
         return parseAPL(52);
-
     } else {
         parseError('unknown format!')
         return false;
@@ -1198,7 +1192,7 @@ const deleteAll = () => {
 const clearFrame = () => {
     if (animationOn) { return false };
     for (let r = 0; r < options.spriteHeight; r++) {
-        for (p=0;p<4;p++) {
+        for (p = 0; p < 4; p++) {
             workspace.frames[workspace.selectedFrame].player[p][r] = 0;
             workspace.frames[workspace.selectedFrame].missile[p][r] = 0;
         }
@@ -1275,7 +1269,7 @@ const delFrame = () => {
 }
 
 const zoomIn = () => {
-    if (options.cellSize<zoomCellSize.length-1) {
+    if (options.cellSize < zoomCellSize.length - 1) {
         options.cellSize++;
         storeOptions();
         newCanvas();
@@ -1284,7 +1278,7 @@ const zoomIn = () => {
 }
 
 const zoomOut = () => {
-    if (options.cellSize>0) {
+    if (options.cellSize > 0) {
         options.cellSize--;
         storeOptions();
         newCanvas();
@@ -1330,42 +1324,97 @@ const flipHFrame = () => {
     if (animationOn) { return false };
     const cf = workspace.frames[workspace.selectedFrame];
     for (let row = 0; row < options.spriteHeight; row++) {
-            if (!isMissileMode()) {
-                const b0 = reversedBytes[cf.player[0][row]];
-                const b1 = reversedBytes[cf.player[1][row]];
-                if (options.spriteGap01 > 0) {
-                    cf.player[0][row] = b1;
-                    cf.player[1][row] = b0;
-                } else {
-                    cf.player[0][row] = b0;
-                    cf.player[1][row] = b1;
-                }
-            }
-            if (isMissileMode()) {
-                const p0 = reversedBytes[(cf.player[0][row]<<2) & 0xff] | reversedBytes[cf.missile[0][row]];
-                const p1 = reversedBytes[(cf.player[1][row]<<2) & 0xff] | reversedBytes[cf.missile[1][row]];
-                const m0 = reversed2bits[cf.player[0][row]>>6] ;
-                const m1 = reversed2bits[cf.player[1][row]>>6] ;
+        if (!isMissileMode()) {
+            const b = _.map(cf.player, r => { return reversedBytes[r[row]] })
 
-                if (options.spriteGap01 > 0) {
-                    cf.player[0][row] = p1;
-                    cf.player[1][row] = p0;
-                    cf.missile[0][row] = m1;
-                    cf.missile[1][row] = m0;
-                } else {
-                    cf.player[0][row] = p0;
-                    cf.player[1][row] = p1;
-                    cf.missile[0][row] = m0;
-                    cf.missile[1][row] = m1;
-                }
-
+            if (options.spriteGap01 > 0) {
+                cf.player[0][row] = b[1];
+                cf.player[1][row] = b[0];
+            } else {
+                cf.player[0][row] = b[0];
+                cf.player[1][row] = b[1];
             }
-   
+
+            if (options.spriteGap23 > 0) {
+                cf.player[2][row] = b[3];
+                cf.player[3][row] = b[2];
+            } else {
+                cf.player[2][row] = b[2];
+                cf.player[3][row] = b[3];
+            }
+
+        }
+        if (isMissileMode()) {
+            const p0 = reversedBytes[(cf.player[0][row] << 2) & 0xff] | reversedBytes[cf.missile[0][row]];
+            const p1 = reversedBytes[(cf.player[1][row] << 2) & 0xff] | reversedBytes[cf.missile[1][row]];
+            const m0 = reversed2bits[cf.player[0][row] >> 6];
+            const m1 = reversed2bits[cf.player[1][row] >> 6];
+            const p2 = reversedBytes[(cf.player[2][row] << 2) & 0xff] | reversedBytes[cf.missile[2][row]];
+            const p3 = reversedBytes[(cf.player[3][row] << 2) & 0xff] | reversedBytes[cf.missile[3][row]];
+            const m2 = reversed2bits[cf.player[2][row] >> 6];
+            const m3 = reversed2bits[cf.player[3][row] >> 6];
+
+            if (options.spriteGap01 > 0) {
+                cf.player[0][row] = p1;
+                cf.player[1][row] = p0;
+                cf.missile[0][row] = m1;
+                cf.missile[1][row] = m0;
+            } else {
+                cf.player[0][row] = p0;
+                cf.player[1][row] = p1;
+                cf.missile[0][row] = m0;
+                cf.missile[1][row] = m1;
+            }
+
+            if (options.spriteGap23 > 0) {
+                cf.player[2][row] = p3;
+                cf.player[3][row] = p2;
+                cf.missile[2][row] = m3;
+                cf.missile[3][row] = m2;
+            } else {
+                cf.player[2][row] = p2;
+                cf.player[3][row] = p3;
+                cf.missile[2][row] = m2;
+                cf.missile[3][row] = m3;
+            }
+        }
     }
+
     if (options.spriteGap01 > 0) {
         const c = workspace.frames[workspace.selectedFrame].colors[0];
         workspace.frames[workspace.selectedFrame].colors[0] = workspace.frames[workspace.selectedFrame].colors[1];
         workspace.frames[workspace.selectedFrame].colors[1] = c;
+    }
+
+    if (options.spriteGap23 > 0) {
+        const c = workspace.frames[workspace.selectedFrame].colors[2];
+        workspace.frames[workspace.selectedFrame].colors[2] = workspace.frames[workspace.selectedFrame].colors[3];
+        workspace.frames[workspace.selectedFrame].colors[3] = c;
+    }
+
+    if (isPlayer23Mode() && (options.pairGap > 0)) {
+        let p = cf.player[0]
+        cf.player[0] = cf.player[2];
+        cf.player[2] = p;
+        p = cf.player[1]
+        cf.player[1] = cf.player[3];
+        cf.player[3] = p;
+        if (isMissileMode()) {
+            let m = cf.missile[0]
+            cf.missile[0] = cf.missile[2];
+            cf.missile[2] = m;
+            m = cf.missile[1]
+            cf.missile[1] = cf.missile[3];
+            cf.missile[3] = m;
+        }
+
+        let c = workspace.frames[workspace.selectedFrame].colors[0];
+        workspace.frames[workspace.selectedFrame].colors[0] = workspace.frames[workspace.selectedFrame].colors[2];
+        workspace.frames[workspace.selectedFrame].colors[2] = c;
+        c = workspace.frames[workspace.selectedFrame].colors[1];
+        workspace.frames[workspace.selectedFrame].colors[1] = workspace.frames[workspace.selectedFrame].colors[3];
+        workspace.frames[workspace.selectedFrame].colors[3] = c;
+
     }
 
     updateColors();
@@ -1379,7 +1428,7 @@ const flipVFrame = () => {
     let first = 0;
     let last = options.spriteHeight - 1;
     while (first < last) {
-        for (p=0;p<2;p++) {        
+        for (p = 0; p < playerCount(); p++) {
             let last0 = workspace.frames[workspace.selectedFrame].player[p][last];
             workspace.frames[workspace.selectedFrame].player[p][last] = workspace.frames[workspace.selectedFrame].player[p][first];
             workspace.frames[workspace.selectedFrame].player[p][first] = last0;
@@ -1397,21 +1446,115 @@ const flipVFrame = () => {
     return true;
 }
 
+const getCarries = (row) => {
+    const sprWidth = spriteWidthPerMode[options.mergeMode] - 1;
+    const carryl = [];
+    const carryr = [];
+
+    const p01loop = () => {
+        if (options.spriteGap01 == 0) {
+            carryl[0] = carryl[0] >> sprWidth;
+            carryl[1] = carryl[1] >> sprWidth;
+
+            carryr[0] = carryr[0] << sprWidth;
+            carryr[1] = carryr[1] << sprWidth;
+        } else {
+            let c = carryl[0];
+            carryl[0] = carryl[1] >> (options.spriteGap01 - 1);
+            carryl[1] = c >> sprWidth;
+
+            c = carryr[0]
+            carryr[0] = carryr[1] << sprWidth;
+            carryr[1] = c << (options.spriteGap01 - 1);
+        }
+    }
+
+    const p23loop = () => {
+        if (options.spriteGap23 == 0) {
+            carryl[2] = carryl[2] >> sprWidth;
+            carryl[3] = carryl[3] >> sprWidth;
+
+            carryr[2] = carryr[2] << sprWidth;
+            carryr[3] = carryr[3] << sprWidth;
+        } else {
+            let c = carryl[2];
+            carryl[2] = carryl[3] >> (options.spriteGap23 - 1);
+            carryl[3] = c >> sprWidth;
+
+            c = carryr[2]
+            carryr[2] = carryr[3] << sprWidth;
+            carryr[3] = c << (options.spriteGap23 - 1);
+        }
+    }
+
+    for (p = 0; p < playerCount(); p++) {
+        if (isMissileMode(options.mergeMode)) {
+            let b0 = (workspace.frames[workspace.selectedFrame].player[p][row] << 2) & 0x03ff;
+            b0 |= workspace.frames[workspace.selectedFrame].missile[p][row];
+            b0 &= 0x03ff;
+            carryl[p] = b0 & 0b1000000000;
+            carryr[p] = b0 & 1;
+        } else {
+            let b0 = workspace.frames[workspace.selectedFrame].player[p][row];
+            carryl[p] = b0 & 0b10000000;
+            carryr[p] = b0 & 1;
+        }
+    }
+
+    if (isPlayer23Mode()) {
+        if (options.pairGap == 0) {
+            p01loop();
+            p23loop();
+        } else {
+
+            if (options.spriteGap01 == 0) {
+                cl23 = (carryl[0] | carryl[1]) >> sprWidth;
+                cr23 = (carryr[0] | carryr[1]) << sprWidth;
+            } else {
+                cl23 = carryl[0] >> sprWidth;
+                cr23 = carryr[1] << sprWidth
+            }
+            if (options.spriteGap23 == 0) {
+                cl01 = (carryl[2] | carryl[3]) >> sprWidth;
+                cr01 = (carryr[2] | carryr[2]) << sprWidth;
+            } else {
+                cl01 = carryl[2] >> sprWidth;
+                cr01 = carryr[3] << sprWidth
+            }
+            carryl[1] = carryl[0] >> sprWidth;
+            carryr[1] = carryr[0] << (options.spriteGap01 - 1);
+            carryl[0] = cl01 >> (options.pairGap01 - 1);
+            carryr[0] = cr01 << sprWidth;
+            carryl[2] = carryl[3] >> (options.spriteGap23 - 1);
+            carryr[2] = carryl[3] << sprWidth;
+            carryl[3] = c23 >> sprWidth;
+            carryr[3] = c23 << (options.pairGap - 1);
+
+        }
+    } else {
+        p01loop();
+    }
+    return [carryl, carryr];
+}
+
 const moveFrameLeft = () => {
     if (animationOn) { return false };
     for (let row = 0; row < options.spriteHeight; row++) {
-        for (p=0;p<2;p++) {
-            let b0 = (workspace.frames[workspace.selectedFrame].player[p][row] << 1) & 0xff;
-            workspace.frames[workspace.selectedFrame].player[p][row] = b0;
-        
+        const [carry, nu] = getCarries(row);
+        for (p = 0; p < playerCount(); p++) {
             if (isMissileMode(options.mergeMode)) {
-                b0 = (workspace.frames[workspace.selectedFrame].player[p][row] << 2) & 0x03ff;
+                let b0 = (workspace.frames[workspace.selectedFrame].player[p][row] << 2) & 0x03ff;
                 b0 |= workspace.frames[workspace.selectedFrame].missile[p][row];
                 b0 = (b0 << 1) & 0x03ff;
-                let p0 = b0 >> 2;
-                let m0 = b0 & 3;
+                b0 = b0 | carry[p];
+                const p0 = b0 >> 2;
+                const m0 = b0 & 3;
                 workspace.frames[workspace.selectedFrame].player[p][row] = p0;
                 workspace.frames[workspace.selectedFrame].missile[p][row] = m0;
+            } else {
+                let b0 = (workspace.frames[workspace.selectedFrame].player[p][row] << 1) & 0xff;
+                b0 = b0 | carry[p];
+                workspace.frames[workspace.selectedFrame].player[p][row] = b0;
             }
         }
     }
@@ -1423,18 +1566,21 @@ const moveFrameLeft = () => {
 const moveFrameRight = () => {
     if (animationOn) { return false };
     for (let row = 0; row < options.spriteHeight; row++) {
-        for (p=0;p<2;p++) {
-            let b0 = (workspace.frames[workspace.selectedFrame].player[p][row] >> 1) & 0xff;
-            workspace.frames[workspace.selectedFrame].player[p][row] = b0;
-
+        const [nu, carry] = getCarries(row);
+        for (p = 0; p < playerCount(); p++) {
             if (isMissileMode()) {
-                b0 = (workspace.frames[workspace.selectedFrame].player[p][row] << 2) & 0x03ff;
+                let b0 = (workspace.frames[workspace.selectedFrame].player[p][row] << 2) & 0x03ff;
                 b0 |= workspace.frames[workspace.selectedFrame].missile[p][row];
                 b0 = b0 >> 1;
-                let p0 = b0 >> 2;
-                let m0 = b0 & 3;
+                b0 = b0 | carry[p];
+                const p0 = b0 >> 2;
+                const m0 = b0 & 3;
                 workspace.frames[workspace.selectedFrame].player[p][row] = p0;
                 workspace.frames[workspace.selectedFrame].missile[p][row] = m0;
+            } else {
+                let b0 = (workspace.frames[workspace.selectedFrame].player[p][row] >> 1) & 0xff;
+                b0 = b0 | carry[p];
+                workspace.frames[workspace.selectedFrame].player[p][row] = b0;
             }
         }
     }
@@ -1445,7 +1591,7 @@ const moveFrameRight = () => {
 
 const moveFrameUp = () => {
     if (animationOn) { return false };
-    for (p=0;p<2;p++) {
+    for (p = 0; p < playerCount(); p++) {
         workspace.frames[workspace.selectedFrame].player[p].length = options.spriteHeight;
         let b0 = workspace.frames[workspace.selectedFrame].player[p].shift();
         workspace.frames[workspace.selectedFrame].player[p].push(options.wrapEditor ? b0 : 0);
@@ -1461,7 +1607,7 @@ const moveFrameUp = () => {
 
 const moveFrameDown = () => {
     if (animationOn) { return false };
-    for (p=0;p<2;p++) {    
+    for (p = 0; p < playerCount(); p++) {
         workspace.frames[workspace.selectedFrame].player[p].length = options.spriteHeight;
         workspace.frames[workspace.selectedFrame].missile[p].length = options.spriteHeight;
         let b0 = workspace.frames[workspace.selectedFrame].player[p].pop();
@@ -1476,7 +1622,7 @@ const moveFrameDown = () => {
 
 const heightDown = () => {
     if (animationOn) { return false };
-    for (p=0;p<2;p++) {    
+    for (p = 0; p < playerCount(); p++) {
         let s0 = workspace.frames[workspace.selectedFrame].player[p]
         workspace.frames[workspace.selectedFrame].player[p] = _.filter(s0, (v, k) => (k % 2 == 0));
         s0 = workspace.frames[workspace.selectedFrame].missile[p]
@@ -1489,7 +1635,7 @@ const heightDown = () => {
 
 const heightUp = () => {
     if (animationOn) { return false };
-    for (p=0;p<2;p++) {    
+    for (p = 0; p < playerCount(); p++) {
         let s0 = workspace.frames[workspace.selectedFrame].player[p]
         workspace.frames[workspace.selectedFrame].player[p] = _.flatMap(s0, v => [v, v]);
         s0 = workspace.frames[workspace.selectedFrame].missile[p]
@@ -1660,7 +1806,6 @@ $(document).ready(function () {
     const bh = $('<div/>').attr('id', 'bathub').on('mousedown', () => { window.location.href = 'https://bocianu.gitlab.io/bathub/' });
     $('#appmenu').append(bh);
 
-
     app.addMenuItem('Clear', saveUndo('clear frame', clearFrame), 'framemenu', 'Clears current frame');
     app.addMenuItem('Copy', copyFrame, 'framemenu', 'Copies from current frame');
     app.addMenuItem('Paste', saveUndo('paste frame', pasteFrame), 'framemenu', 'Pastes into current frame');
@@ -1692,11 +1837,11 @@ $(document).ready(function () {
         colorClicked(Number(_.last(e.target.id)));
     })
 
-    for (let c of [0,1,2,5,6]) {
+    for (let c of [0, 1, 2, 5, 6]) {
         const picker = $("<div/>");
         picker.attr('id', `picker${c}`)
-        .addClass('picker')
-        .bind('mousedown', pickerClicked);
+            .addClass('picker')
+            .bind('mousedown', pickerClicked);
         $(`#color${c}`).append(picker);
     }
 
@@ -1708,6 +1853,5 @@ $(document).ready(function () {
     loadUndos();
     newCanvas();
     updateScreen();
-
 
 });
