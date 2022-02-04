@@ -12,7 +12,7 @@ const MODE_PM0PM1PM2PM3 = 5;
 const MODE_MP0MP1MP2MP3 = 6;
 
 const spriteWidthPerMode = [
-    8, 10, 10, 0, 8, 10, 10
+    8, 10, 10, 10, 8, 10, 10, 10
 ];
 
 const zoomCellSize = [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
@@ -93,6 +93,10 @@ Number.prototype.clamp = function (min, max) {
 
 const isMissileMode = () => {
     return ((options.mergeMode & 1) == 1)
+}
+
+const isMissileOnLeft = () => {
+    return ((options.mergeMode & 2) == 2)
 }
 
 const isPlayer23Mode = () => {
@@ -359,6 +363,9 @@ const setColorOn = (col, row, color) => {
     if (color == 0) {
         clearPixel01();
         clearPixel23();
+        c = 0;
+        c01 = 0;
+        c23 = 0;
     }
     if ((mp0 || mm0) && color == 1) {
         clearPixel01();
@@ -373,7 +380,7 @@ const setColorOn = (col, row, color) => {
         c01 = 2;
     }
     if (color == 3) {
-        if (options.ORDrawsOutside || ((mp0 << 2 || mm0) && (mp1 << 2 || mm1))) {
+        if (options.ORDrawsOutside || ((mp0 || mm0) && (mp1 || mm1))) {
             clearPixel01();
             currentFrame.player[0][row] |= mp0
             currentFrame.player[1][row] |= mp1
@@ -395,7 +402,7 @@ const setColorOn = (col, row, color) => {
         c23 = 6;
     }
     if (color == 7) {
-        if (options.ORDrawsOutside || ((mp2 << 2 || mm2) && (mp3 << 2 || mm3))) {
+        if (options.ORDrawsOutside || ((mp2 || mm2) && (mp3 || mm3))) {
             clearPixel23();
             currentFrame.player[2][row] |= mp2
             currentFrame.player[3][row] |= mp3
@@ -969,36 +976,79 @@ const parseTemplate = (template) => {
         let sprite = '';
         tsprite = s;
         _.each(workspace.frames, (frame, f) => {
+            const merged = new Array(options.spriteHeight).fill(0);
             lines = '';
             tframe = f;
             frame.player[s].length = options.spriteHeight;
-            pushArray(frame.player[s])
+            frame.missile[s].length = options.spriteHeight;
+            _.each(frame.player[s], (p,row) => {
+                if (isMissileOnLeft()) {
+                    merged[row] = (p << 2) | frame.missile[s][row];
+                } else {
+                    merged[row] = p;
+                }
+            });
+            pushArray(merged);
             sprite += getBlock(lines, template.frame);
         });
         pushBlock(sprite, template.sprite);
     }
 
-    pushSpriteColors(0);
-    pushSpriteColors(1);
-    pushSpriteData(0);
-    pushSpriteData(1);
+    const pushMissileData = () => {
+        let missiles = '';
+        _.each(workspace.frames, (frame, f) => {
+            const merged = new Array(options.spriteHeight).fill(0);
+            lines = '';
+            tframe = f;
+            for (let p=0; p<playerCount(); p++) {
+                _.each(frame.missile[p], (m, row) => {
+                    if (isMissileOnLeft()) {
+                        merged[row] |= (frame.player[p][row] >> 6) << (p*2);
+                    } else {
+                        merged[row] |= m << (p*2);
+                    }
+                });
+            };
+            pushArray(merged);
+            missiles += getBlock(lines, template.frame);
+        });
+        pushBlock(missiles, template.missiles);
+    }
 
-    return parseTemplateVars(`${template.block.prefix}${templateLines}${template.block.postfix}`);
+    for (let p=0; p<playerCount(); p++) { pushSpriteColors(p) };
+
+    for (let p=0; p<playerCount(); p++) { pushSpriteData(p) };
+
+    if (isMissileMode()) { pushMissileData() };
+
+    const parsed = isPlayer23Mode()?
+        parseTemplateVars(`${template.block.prefix23||template.block.prefix}${templateLines}${template.block.postfix}`):
+        parseTemplateVars(`${template.block.prefix}${templateLines}${template.block.postfix}`);
+    return parsed;
 }
 
 const saveFile = () => {
     const name = prompt('set filename of saved file:', 'mysprites.spr');
     let binList = [];
-    let listByte = 0;
     binList.push(sprHeader);
     binList.push(workspace.selectedFrame, workspace.selectedColor, workspace.backgroundColor);
     binList.push(options.animationSpeed, options.palette == 'PAL' ? 0 : 1, options.lineResolution);
-    binList.push([0, 0, 0, 0, 0, 0]); // 6 unused bytes
-    binList.push(workspace.frames.length, options.spriteHeight, options.spriteGap01);
-    binList.push(_.map(workspace.frames, f => f.colors[0]));
-    binList.push(_.map(workspace.frames, f => f.colors[1]));
-    for (p = 0; p < 2; p++) {
+    binList.push(options.mergeMode)
+    binList.push(options.spriteGap01)
+    binList.push(options.spriteGap23)
+    binList.push(options.pairGap)
+    binList.push([0, 0, 0]); // 3 unused bytes
+    binList.push(workspace.frames.length, options.spriteHeight);
+    for (let p = 0; p < playerCount(); p++) {
+        binList.push(_.map(workspace.frames, f => f.colors[p]));
+    }
+    for (let p = 0; p < playerCount(); p++) {
         _.each(workspace.frames, f => { f.player[p].length = options.spriteHeight; binList.push(f.player[p]) });
+    }
+    if (isMissileMode()) {
+        for (let p = 0; p < playerCount(); p++) {
+            _.each(workspace.frames, f => { f.missile[p].length = options.spriteHeight; binList.push(f.missile[p]) });
+        }
     }
     binList = _.flatMap(binList);
     var a = document.createElement('a');
@@ -1048,7 +1098,8 @@ const parseBinary = (binData) => {
         options.spriteGap01 = binData[binPtr++];
         for (let f = 0; f < 17; f++) {
             const frame = {
-                data: [[], []],
+                player: [[], [], [], []],
+                missile: [[], [], [], []],
                 colors: [binData[binPtr++]]
             }
             wrkspc.frames.push(frame);
@@ -1087,30 +1138,50 @@ const parseBinary = (binData) => {
         options.animationSpeed = binData[binPtr++];
         options.palette = (binData[binPtr++] == 1) ? 'NTSC' : 'PAL';
         options.lineResolution = binData[binPtr++];
-        binPtr += 6; // unused bytes
-        const aplFrames = binData[binPtr++];
-        options.spriteHeight = binData[binPtr++];
+        options.mergeMode = binData[binPtr++];
         options.spriteGap01 = binData[binPtr++];
+        options.spriteGap23 = binData[binPtr++];
+        options.pairGap = binData[binPtr++];
+        binPtr += 2; // unused bytes
+        let frameCount = binData[binPtr++];
+        
+        if (frameCount != 0) {                       // P0-P1 old format - preserved for compatibility
+            options.spriteHeight = binData[binPtr++];
+            options.spriteGap01 = binData[binPtr++];
+        } else {                                      // all other modes
+            frameCount = binData[binPtr++];
+            options.spriteHeight = binData[binPtr++];
+        }
 
-        for (let f = 0; f < aplFrames; f++) {
+        for (let f = 0; f < frameCount; f++) {
             const frame = {
-                data: [[], []],
+                player: [[], [], [], []],
+                missile: [[], [], [], []],
                 colors: [binData[binPtr++]]
             }
             wrkspc.frames.push(frame);
         }
-        for (let f = 0; f < aplFrames; f++) {
-            wrkspc.frames[f].colors.push(binData[binPtr++]);
+        for (let p = 1; p < playerCount(); p++) {
+            for (let f = 0; f < frameCount; f++) {
+                wrkspc.frames[f].colors.push(binData[binPtr++]);
+            }
         }
-        for (let f = 0; f < aplFrames; f++) {
-            wrkspc.frames[f].player[p] = Array.from(binData.subarray(binPtr, binPtr + options.spriteHeight));
-            binPtr += options.spriteHeight;
+        for (let p = 0; p < playerCount(); p++) {
+            for (let f = 0; f < frameCount; f++) {
+                wrkspc.frames[f].player[p] = Array.from(binData.subarray(binPtr, binPtr + options.spriteHeight));
+                binPtr += options.spriteHeight;
+            }
         }
-        for (let f = 0; f < aplFrames; f++) {
-            wrkspc.frames[f].player[1] = Array.from(binData.subarray(binPtr, binPtr + options.spriteHeight));
-            binPtr += options.spriteHeight;
+        if (isMissileMode()) {
+            for (let p = 0; p < playerCount(); p++) {
+                for (let f = 0; f < frameCount; f++) {
+                    wrkspc.frames[f].missile[p] = Array.from(binData.subarray(binPtr, binPtr + options.spriteHeight));
+                    binPtr += options.spriteHeight;
+                }
+            }
         }
-        wrkspc.frames.length = aplFrames;
+
+        wrkspc.frames.length = frameCount;
         return wrkspc;
 
     } else if (areEqual(apl2Header, binData.subarray(0, 4))) {    // PARSE APL+ (52 rows)
@@ -1299,6 +1370,7 @@ const pasteColors = () => {
         workspace.frames[workspace.selectedFrame].colors = _.cloneDeep(workspace.clipBoard.colors);
     }
     drawEditor();
+    updateColors();
     storeWorkspace();
     return true;
 }
@@ -1446,147 +1518,73 @@ const flipVFrame = () => {
     return true;
 }
 
-const getCarries = (row) => {
-    const sprWidth = spriteWidthPerMode[options.mergeMode] - 1;
-    const carryl = [];
-    const carryr = [];
+const moveColor = (c, source, target) => {
+    if (c==0) { return 0 }
+    let [mp0, mp1, mm0, mm1, mp2, mp3, mm2, mm3] = getMasks(source);
+    const s0 = mp0|mm0;
+    const s1 = mp1|mm1;
+    const s2 = mp2|mm2;
+    const s3 = mp3|mm3;
+    [mp0, mp1, mm0, mm1, mp2, mp3, mm2, mm3] = getMasks(target);
+    const t0 = mp0|mm0;
+    const t1 = mp1|mm1;
+    const t2 = mp2|mm2;
+    const t3 = mp3|mm3;
+    let cout = c;
 
-    const p01loop = () => {
-        if (options.spriteGap01 == 0) {
-            carryl[0] = carryl[0] >> sprWidth;
-            carryl[1] = carryl[1] >> sprWidth;
+    if (((s1 && !t1) || (s0 && !t0)) && (t2 || t3) && !(c&4)) {
+        cout = c | 4;
+    }
+    if (((s3 && !t3) || (s2 && !t2)) && (t0 || t1) && (c&4)) {
+        cout = c - 4;
+    }
+    c = cout;
+    if (((s2 && !t2) || (s0 && !t0)) && (t1 || t3) && !(c&2)) {
+        cout = c | 2;
+    }
+    c = cout;
+    if (((s3 && !t3) || (s1 && !t1)) && (t0 || t2) && !(c&1)) {
+        cout = c | 1;
+    }
+    
+    return cout;
+}
 
-            carryr[0] = carryr[0] << sprWidth;
-            carryr[1] = carryr[1] << sprWidth;
-        } else {
-            let c = carryl[0];
-            carryl[0] = carryl[1] >> (options.spriteGap01 - 1);
-            carryl[1] = c >> sprWidth;
-
-            c = carryr[0]
-            carryr[0] = carryr[1] << sprWidth;
-            carryr[1] = c << (options.spriteGap01 - 1);
+const moveFrame = dir => {
+    if (animationOn) { return false };
+    const prevOrState = options.ORDrawsOutside;
+    options.ORDrawsOutside = 1;
+    const sframeNum = workspace.frames.length;
+    workspace.frames[sframeNum] = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
+    clearFrame();
+    for (let row = 0; row < options.spriteHeight; row++) {
+        for(let col = 0; col < editorWindow.columns; col++) {
+            let target = col + dir;
+            let clear = false;
+            if (target<0) {
+                if (!options.wrapEditor) {clear = true}
+                target = editorWindow.columns-1
+            };
+            if (target==editorWindow.columns) {
+                if (!options.wrapEditor) {clear = true}
+                target = 0;
+            };
+            setColorOn(target,row,clear?0:moveColor(getColorOn(sframeNum,col,row), col, target));
         }
     }
-
-    const p23loop = () => {
-        if (options.spriteGap23 == 0) {
-            carryl[2] = carryl[2] >> sprWidth;
-            carryl[3] = carryl[3] >> sprWidth;
-
-            carryr[2] = carryr[2] << sprWidth;
-            carryr[3] = carryr[3] << sprWidth;
-        } else {
-            let c = carryl[2];
-            carryl[2] = carryl[3] >> (options.spriteGap23 - 1);
-            carryl[3] = c >> sprWidth;
-
-            c = carryr[2]
-            carryr[2] = carryr[3] << sprWidth;
-            carryr[3] = c << (options.spriteGap23 - 1);
-        }
-    }
-
-    for (p = 0; p < playerCount(); p++) {
-        if (isMissileMode(options.mergeMode)) {
-            let b0 = (workspace.frames[workspace.selectedFrame].player[p][row] << 2) & 0x03ff;
-            b0 |= workspace.frames[workspace.selectedFrame].missile[p][row];
-            b0 &= 0x03ff;
-            carryl[p] = b0 & 0b1000000000;
-            carryr[p] = b0 & 1;
-        } else {
-            let b0 = workspace.frames[workspace.selectedFrame].player[p][row];
-            carryl[p] = b0 & 0b10000000;
-            carryr[p] = b0 & 1;
-        }
-    }
-
-    if (isPlayer23Mode()) {
-        if (options.pairGap == 0) {
-            p01loop();
-            p23loop();
-        } else {
-
-            if (options.spriteGap01 == 0) {
-                cl23 = (carryl[0] | carryl[1]) >> sprWidth;
-                cr23 = (carryr[0] | carryr[1]) << sprWidth;
-            } else {
-                cl23 = carryl[0] >> sprWidth;
-                cr23 = carryr[1] << sprWidth
-            }
-            if (options.spriteGap23 == 0) {
-                cl01 = (carryl[2] | carryl[3]) >> sprWidth;
-                cr01 = (carryr[2] | carryr[2]) << sprWidth;
-            } else {
-                cl01 = carryl[2] >> sprWidth;
-                cr01 = carryr[3] << sprWidth
-            }
-            carryl[1] = carryl[0] >> sprWidth;
-            carryr[1] = carryr[0] << (options.spriteGap01 - 1);
-            carryl[0] = cl01 >> (options.pairGap01 - 1);
-            carryr[0] = cr01 << sprWidth;
-            carryl[2] = carryl[3] >> (options.spriteGap23 - 1);
-            carryr[2] = carryl[3] << sprWidth;
-            carryl[3] = c23 >> sprWidth;
-            carryr[3] = c23 << (options.pairGap - 1);
-
-        }
-    } else {
-        p01loop();
-    }
-    return [carryl, carryr];
+    workspace.frames.pop();
+    drawEditor();
+    storeWorkspace();
+    options.ORDrawsOutside = prevOrState;
+    return true;
 }
 
 const moveFrameLeft = () => {
-    if (animationOn) { return false };
-    for (let row = 0; row < options.spriteHeight; row++) {
-        const [carry, nu] = getCarries(row);
-        for (p = 0; p < playerCount(); p++) {
-            if (isMissileMode(options.mergeMode)) {
-                let b0 = (workspace.frames[workspace.selectedFrame].player[p][row] << 2) & 0x03ff;
-                b0 |= workspace.frames[workspace.selectedFrame].missile[p][row];
-                b0 = (b0 << 1) & 0x03ff;
-                b0 = b0 | carry[p];
-                const p0 = b0 >> 2;
-                const m0 = b0 & 3;
-                workspace.frames[workspace.selectedFrame].player[p][row] = p0;
-                workspace.frames[workspace.selectedFrame].missile[p][row] = m0;
-            } else {
-                let b0 = (workspace.frames[workspace.selectedFrame].player[p][row] << 1) & 0xff;
-                b0 = b0 | carry[p];
-                workspace.frames[workspace.selectedFrame].player[p][row] = b0;
-            }
-        }
-    }
-    drawEditor();
-    storeWorkspace();
-    return true;
+    return moveFrame(-1);
 }
 
 const moveFrameRight = () => {
-    if (animationOn) { return false };
-    for (let row = 0; row < options.spriteHeight; row++) {
-        const [nu, carry] = getCarries(row);
-        for (p = 0; p < playerCount(); p++) {
-            if (isMissileMode()) {
-                let b0 = (workspace.frames[workspace.selectedFrame].player[p][row] << 2) & 0x03ff;
-                b0 |= workspace.frames[workspace.selectedFrame].missile[p][row];
-                b0 = b0 >> 1;
-                b0 = b0 | carry[p];
-                const p0 = b0 >> 2;
-                const m0 = b0 & 3;
-                workspace.frames[workspace.selectedFrame].player[p][row] = p0;
-                workspace.frames[workspace.selectedFrame].missile[p][row] = m0;
-            } else {
-                let b0 = (workspace.frames[workspace.selectedFrame].player[p][row] >> 1) & 0xff;
-                b0 = b0 | carry[p];
-                workspace.frames[workspace.selectedFrame].player[p][row] = b0;
-            }
-        }
-    }
-    drawEditor();
-    storeWorkspace();
-    return true;
+    return moveFrame(1)
 }
 
 const moveFrameUp = () => {
@@ -1777,7 +1775,7 @@ const keyPressed = e => {               // always working
                 break;
         }
     }
-    console.log(e.code);
+    //console.log(e.code);
 }
 
 
