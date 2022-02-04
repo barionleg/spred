@@ -1,17 +1,33 @@
 const GRID_COLOR = 'rgba(200,200,200,0.3)';
 const MAX_FILESIZE = 64 * 1024;
-const aplHeader = [0x9a,0xf8,0x39,0x21];
-const apl2Header = [0x45,0x64,0x52,0x32];
-const sprHeader = [0x53,0x70,0x72,0x21];
+const aplHeader = [0x9a, 0xf8, 0x39, 0x21];
+const apl2Header = [0x45, 0x64, 0x52, 0x32];
+const sprHeader = [0x53, 0x70, 0x72, 0x21];
+
+const MODE_P0P1 = 0;
+const MODE_PM0PM1 = 1;
+const MODE_MP0MP1 = 2;
+const MODE_P0P1P2P3 = 4;
+const MODE_PM0PM1PM2PM3 = 5;
+const MODE_MP0MP1MP2MP3 = 6;
+
+const spriteWidthPerMode = [
+    8, 10, 10, 10, 8, 10, 10, 10
+];
+
+const zoomCellSize = [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
+
 const defaultOptions = {
-    version: '0.8.1',
-    storageName: 'SprEdStore081',
+    version: '0.9.0',
+    storageName: 'SprEdStore090',
     undoLevels: 128,
     lineResolution: 1,
     spriteHeight: 16,
-    spriteGap: 0,
+    spriteGap01: 0,
+    spriteGap23: 0,
+    pairGap: 8,
     showGrid: 1,
-    cellSize: 24,
+    cellSize: 5,
     wrapEditor: 1,
     animationSpeed: 5,
     palette: 'PAL',
@@ -22,15 +38,16 @@ const defaultOptions = {
     startingLine: 10000,
     lineStep: 10,
     ORDrawsOutside: 0,
-    squarePixel: 1
+    squarePixel: 1,
+    mergeMode: MODE_P0P1
 }
 let options = {};
 const dontSave = ['version', 'storageName'];
-
-let editor = null;
-let player = 0;
+const editorWindow = {}
+let currentCell = {}
+let editorCtx = null;
+let animationOn = 0;
 let playerInterval = null;
-
 let undos = [];
 let redos = [];
 let beforeDrawingState = null;
@@ -64,10 +81,30 @@ const reversedBytes = [
     0x0F, 0x8F, 0x4F, 0xCF, 0x2F, 0xAF, 0x6F, 0xEF, 0x1F, 0x9F, 0x5F, 0xDF, 0x3F, 0xBF, 0x7F, 0xFF,
 ];
 
+const reversed2bits = [
+    0x00, 0x02, 0x01, 0x03
+]
+
 // ******************************* HELPERS
 
 Number.prototype.clamp = function (min, max) {
     return Math.min(Math.max(this, min), max);
+}
+
+const isMissileMode = () => {
+    return ((options.mergeMode & 1) == 1)
+}
+
+const isMissileOnLeft = () => {
+    return ((options.mergeMode & 2) == 2)
+}
+
+const isPlayer23Mode = () => {
+    return ((options.mergeMode & 4) == 4)
+}
+
+const playerCount = () => {
+    return isPlayer23Mode() ? 4 : 2;
 }
 
 function decimalToHex(d, padding) {
@@ -89,7 +126,6 @@ function decimalToBin(d, padding) {
     return bin;
 }
 
-
 const userIntParse = (udata) => {
     if (_.isNull(udata)) return null;
     udata = _.trim(udata);
@@ -105,7 +141,7 @@ const userIntParse = (udata) => {
     }
     if (!_.isNaN(udata)) {
         if (sign === -1) {
-            udata = binFile.data.length - udata;
+            udata = -udata;
         }
         return udata;
     } else {
@@ -115,12 +151,15 @@ const userIntParse = (udata) => {
 
 const getEmptyFrame = () => {
     const frame = {
-        data: [[],[]],
-        colors: [0x24, 0xc8]
+        player: [[], [], [], []],
+        missile: [[], [], [], []],
+        colors: [0x24, 0xc8, 0x86, 0xea]
     }
-    for (let r=0;r<options.spriteHeight;r++) {
-        frame.data[0][r] = 0;
-        frame.data[1][r] = 0;
+    for (let r = 0; r < options.spriteHeight; r++) {
+        for (p = 0; p < 4; p++) {
+            frame.player[p][r] = 0;
+            frame.missile[p][r] = 0;
+        }
     }
     return frame;
 }
@@ -139,7 +178,7 @@ const pushUndo = (name, undoData) => {
 const saveUndo = (name, modifier) => {
     return () => {
         const undoData = _.cloneDeep(workspace);
-        const result = modifier?modifier():true;
+        const result = modifier ? modifier() : true;
         if (result) {
             pushUndo(name, undoData);
         }
@@ -180,31 +219,40 @@ const getColors = (frame) => {
         workspace.backgroundColor,
         workspace.frames[frame].colors[0],
         workspace.frames[frame].colors[1],
-        workspace.frames[frame].colors[0] | workspace.frames[frame].colors[1]
+        workspace.frames[frame].colors[0] | workspace.frames[frame].colors[1],
+        0,
+        workspace.frames[frame].colors[2],
+        workspace.frames[frame].colors[3],
+        workspace.frames[frame].colors[2] | workspace.frames[frame].colors[3]
     ];
 }
 
 const updateColors = colors => {
-    if (colors==undefined) {
+    if (colors == undefined) {
         colors = getColors(workspace.selectedFrame);
     }
-    for (let i=0;i<4;i++) {
+    for (let i = 0; i < 8; i++) {
         $(`#color${i}`)
-        .css('background-color',getByteRGB(colors[i]))
-        .attr('title',`${colors[i]} ($${decimalToHex(colors[i]).toUpperCase()})`)
+            .css('background-color', getByteRGB(colors[i]))
+            .attr('title', `${colors[i]} ($${decimalToHex(colors[i]).toUpperCase()})`)
+    }
+    if (isPlayer23Mode()) {
+        $('.p23only').removeClass('none');
+    } else {
+        $('.p23only').addClass('none');
     }
     colorClicked(workspace.selectedColor);
 }
 
 const colorClicked = (c) => {
-    if (player) { return false };
+    if (animationOn) { return false };
     workspace.selectedColor = c;
     $('.colorbox').removeClass('colorSelected');
     $(`#color${c}`).addClass('colorSelected');
     storeWorkspace();
 }
 
-const getColorRGB = (frame,c) => {
+const getColorRGB = (frame, c) => {
     const colors = getColors(frame);
     return getByteRGB(colors[c]);
 }
@@ -215,7 +263,7 @@ const getByteRGB = (cval) => {
     const lm = cval & 15;
     const crlv = cr ? 50 : 0;
 
-    const phase = (options.palette == 'PAL')?((cr - 1) * 25.7 - 15) * (2 * 3.14159 / 360): ((cr-1)*25 - 58) * (2 * 3.14159 / 360);
+    const phase = (options.palette == 'PAL') ? ((cr - 1) * 25.7 - 15) * (2 * 3.14159 / 360) : ((cr - 1) * 25 - 58) * (2 * 3.14159 / 360);
 
     const y = 255 * (lm + 1) / 16;
     const i = crlv * Math.cos(phase);
@@ -228,67 +276,151 @@ const getByteRGB = (cval) => {
     const rr = (Math.round(r)).clamp(0, 255);
     const gg = (Math.round(g)).clamp(0, 255);
     const bb = (Math.round(b)).clamp(0, 255);
-    
+
     const rgb = `rgb(${rr},${gg},${bb})`;
     return rgb;
 }
 
 const getMasks = col => {
-    const m0 = 0b10000000 >> col;
-    const m1offset = col - options.spriteGap;
-    const m1 = m1offset<0?0:0b10000000 >> m1offset;
-    return [m0, m1]
+    const mp0 = col > 8 ? 0 : 0b10000000 >> col;
+    const mp1offset = col - options.spriteGap01;
+    const mp1 = mp1offset < 0 ? 0 : 0b10000000 >> mp1offset;
+    const mm0offset = col - 8;
+    const mm0 = mm0offset < 0 ? 0 : 0b10 >> mm0offset;
+    const mm1offset = col - 8 - options.spriteGap01;
+    const mm1 = mm1offset < 0 ? 0 : 0b10 >> mm1offset;
+
+    const mp2offset = col - options.pairGap;
+    const mp2 = mp2offset < 0 ? 0 : 0b10000000 >> mp2offset;
+    const mp3offset = col - options.pairGap - options.spriteGap23;
+    const mp3 = mp3offset < 0 ? 0 : 0b10000000 >> mp3offset;
+    const mm2offset = col - options.pairGap - 8;
+    const mm2 = mm2offset < 0 ? 0 : 0b10 >> mm2offset;
+    const mm3offset = col - options.pairGap - 8 - options.spriteGap23;
+    const mm3 = mm3offset < 0 ? 0 : 0b10 >> mm3offset;
+
+    const missile = isMissileMode();
+    const p23 = isPlayer23Mode();
+    return [
+        mp0,
+        mp1,
+        missile ? mm0 : 0,
+        missile ? mm1 : 0,
+        p23 ? mp2 : 0,
+        p23 ? mp3 : 0,
+        p23 ? (missile ? mm2 : 0) : 0,
+        p23 ? (missile ? mm3 : 0) : 0
+    ]
 }
 
-const getColorOn = (frame,col,row) => {
-    const b0 = workspace.frames[frame].data[0][row];
-    const b1 = workspace.frames[frame].data[1][row];
-    const [m0,m1] = getMasks(col);
-    const c0 = (b0 & m0)?1:0;
-    const c1 = (b1 & m1)?2:0;
-    return c0 | c1;
+const getColorOn = (frame, col, row) => {
+    let c0, c1, c2, c3;
+    const b0 = workspace.frames[frame].player[0][row];
+    const b1 = workspace.frames[frame].player[1][row];
+    const bm0 = workspace.frames[frame].missile[0][row];
+    const bm1 = workspace.frames[frame].missile[1][row];
+    const b2 = workspace.frames[frame].player[2][row];
+    const b3 = workspace.frames[frame].player[3][row];
+    const bm2 = workspace.frames[frame].missile[2][row];
+    const bm3 = workspace.frames[frame].missile[3][row];
+    const [mp0, mp1, mm0, mm1, mp2, mp3, mm2, mm3] = getMasks(col);
+    c0 = (b0 & mp0) || (bm0 & mm0) ? 1 : 0;
+    c1 = (b1 & mp1) || (bm1 & mm1) ? 2 : 0;
+    c01 = c0 | c1;
+    c2 = (b2 & mp2) || (bm2 & mm2) ? 5 : 0;
+    c3 = (b3 & mp3) || (bm3 & mm3) ? 6 : 0;
+    c23 = c2 | c3;
+    let c = c01;
+    if (isPlayer23Mode()) {
+        if (c == 0) { c = c23 } // ***************** p01 has higher priority
+    }
+    return c
 }
 
-const getRGBOn = (frame,col,row) => {
-    return getColorRGB(frame,getColorOn(frame,col,row));
+const getRGBOn = (frame, col, row) => {
+    return getColorRGB(frame, getColorOn(frame, col, row));
 }
 
-const setColorOn = (col,row,color) => {
-        let c = getColorOn(workspace.selectedFrame,col,row);
-        const [m0,m1] = getMasks(col);
-        const currentFrame = workspace.frames[workspace.selectedFrame];
-        const clearPixel = () => {
-            if (!beforeDrawingState) {beforeDrawingState = _.cloneDeep(workspace)}
-            currentFrame.data[0][row] &= (~m0 & 0xff)     
-            currentFrame.data[1][row] &= (~m1 & 0xff)     
+const setColorOn = (col, row, color) => {
+    let c = getColorOn(workspace.selectedFrame, col, row);
+    let c01 = c < 4 ? c : 0;
+    let c23 = c > 3 ? c : 0;
+    const [mp0, mp1, mm0, mm1, mp2, mp3, mm2, mm3] = getMasks(col);
+    const currentFrame = workspace.frames[workspace.selectedFrame];
+    if (!beforeDrawingState) { beforeDrawingState = _.cloneDeep(workspace) }
+    const clearPixel01 = () => {
+        currentFrame.player[0][row] &= (~mp0 & 0xff)
+        currentFrame.player[1][row] &= (~mp1 & 0xff)
+        currentFrame.missile[0][row] &= (~mm0 & 0xff)
+        currentFrame.missile[1][row] &= (~mm1 & 0xff)
+    }
+    const clearPixel23 = () => {
+        currentFrame.player[2][row] &= (~mp2 & 0xff)
+        currentFrame.player[3][row] &= (~mp3 & 0xff)
+        currentFrame.missile[2][row] &= (~mm2 & 0xff)
+        currentFrame.missile[3][row] &= (~mm3 & 0xff)
+    }
+    if (color == 0) {
+        clearPixel01();
+        clearPixel23();
+        c = 0;
+        c01 = 0;
+        c23 = 0;
+    }
+    if ((mp0 || mm0) && color == 1) {
+        clearPixel01();
+        currentFrame.player[0][row] |= mp0
+        currentFrame.missile[0][row] |= mm0
+        c01 = 1;
+    }
+    if ((mp1 || mm1) && color == 2) {
+        clearPixel01();
+        currentFrame.player[1][row] |= mp1
+        currentFrame.missile[1][row] |= mm1
+        c01 = 2;
+    }
+    if (color == 3) {
+        if (options.ORDrawsOutside || ((mp0 || mm0) && (mp1 || mm1))) {
+            clearPixel01();
+            currentFrame.player[0][row] |= mp0
+            currentFrame.player[1][row] |= mp1
+            currentFrame.missile[0][row] |= mm0
+            currentFrame.missile[1][row] |= mm1
+            c01 = (mp0 || mm0 ? 1 : 0) | (mp1 || mm1 ? 2 : 0);
         }
-        if (color == 0) {
-            clearPixel();
-            c = 0;
+    }
+    if ((mp2 || mm2) && color == 5) {
+        clearPixel23();
+        currentFrame.player[2][row] |= mp2
+        currentFrame.missile[2][row] |= mm2
+        c23 = 5;
+    }
+    if ((mp3 || mm3) && color == 6) {
+        clearPixel23();
+        currentFrame.player[3][row] |= mp3
+        currentFrame.missile[3][row] |= mm3
+        c23 = 6;
+    }
+    if (color == 7) {
+        if (options.ORDrawsOutside || ((mp2 || mm2) && (mp3 || mm3))) {
+            clearPixel23();
+            currentFrame.player[2][row] |= mp2
+            currentFrame.player[3][row] |= mp3
+            currentFrame.missile[2][row] |= mm2
+            currentFrame.missile[3][row] |= mm3
+            c23 = (mp2 || mm2 ? 5 : 0) | (mp3 || mm3 ? 6 : 0);
         }
-        if (m0 && color == 1) {
-            clearPixel();
-            currentFrame.data[0][row] |= m0
-            c = 1;
-        }
-        if (m1 && color == 2) {
-            clearPixel();
-            currentFrame.data[1][row] |= m1
-            c = 2;
-        }
-        if (color == 3) {
-            if (options.ORDrawsOutside || (m0 && m1)) {
-                clearPixel();
-                currentFrame.data[0][row] |= m0
-                currentFrame.data[1][row] |= m1
-                c = (m0?1:0) | (m1?2:0);
-            }
-        }
-        drawBlock(col,row,getColorRGB(workspace.selectedFrame,c));
+    }
+    c = c01 ? c01 : c;
+
+    if (isPlayer23Mode()) {
+        c = (c == 0) ? c23 : c;
+    }
+    drawBlock(col, row, getColorRGB(workspace.selectedFrame, c));
 }
 
 const setNewColor = (c, cval) => {
-    const frame = (options.commonPalette)?0:workspace.selectedFrame;
+    const frame = (options.commonPalette) ? 0 : workspace.selectedFrame;
     switch (c) {
         case 0:
             workspace.backgroundColor = cval;
@@ -299,15 +431,21 @@ const setNewColor = (c, cval) => {
         case 2:
             workspace.frames[frame].colors[1] = cval;
             break;
+        case 5:
+            workspace.frames[frame].colors[2] = cval;
+            break;
+        case 6:
+            workspace.frames[frame].colors[3] = cval;
+            break;
     }
     storeWorkspace();
 }
 
 const colorCellClicked = e => {
-    if (player) { return false };
-    cval = Number(_.last(_.split(e.target.id,'_')));
+    if (animationOn) { return false };
+    cval = Number(_.last(_.split(e.target.id, '_')));
     c = Number(_.last($(e.target).parent()[0].id));
-    setNewColor(c,cval);
+    setNewColor(c, cval);
     updateScreen();
     $(".palette").remove();
 
@@ -319,28 +457,27 @@ const showPalette = c => {
     } else {
         $(".palette").remove();
         const pal = $("<div/>")
-        .attr('id',`pal${c}`)
-        .addClass('palette');
+            .attr('id', `pal${c}`)
+            .addClass('palette');
         let cval = 0;
         const colors = getColors(workspace.selectedFrame);
 
-        while (cval<256) {
+        while (cval < 256) {
             const rgb = getByteRGB(cval);
-            const cellClass = (cval == colors[c])?'cellSelected':'';
+            const cellClass = (cval == colors[c]) ? 'cellSelected' : '';
             const cell = $("<div/>")
-            .addClass('colorCell')
-            .addClass(cellClass)
-            .attr('id',`col_${cval}`)
-            .attr('title',`${cval} ($${decimalToHex(cval).toUpperCase()})`)
-            .css('background-color', rgb)
-            .bind('mousedown',colorCellClicked)
+                .addClass('colorCell')
+                .addClass(cellClass)
+                .attr('id', `col_${cval}`)
+                .attr('title', `${cval} ($${decimalToHex(cval).toUpperCase()})`)
+                .css('background-color', rgb)
+                .bind('mousedown', colorCellClicked)
             if (cval % 16 == 0) cell.addClass('palette_firstinrow');
-    
+
             pal.append(cell);
             cval += 2;
         }
-        $("#main").append(pal);
-
+        $("#color_box").append(pal);
     }
 }
 
@@ -354,10 +491,7 @@ const pickerClicked = (e) => {
 
 // *********************************** EDITOR OPERATIONS
 
-const editorWindow = {}
-let currentCell = {}
-
-const sameCell = (c,n) => {
+const sameCell = (c, n) => {
     if (c.row == undefined) {
         return false;
     }
@@ -372,17 +506,17 @@ const sameCell = (c,n) => {
 
 const locateCell = (event) => {
     const cell = {};
-    const x = event.offsetX; 
-    const y = event.offsetY; 
-    cell.row = Math.floor(y/editorWindow.cyoffset);
-    cell.col = Math.floor(x/editorWindow.cxoffset);
+    const x = event.offsetX;
+    const y = event.offsetY;
+    cell.row = Math.floor(y / editorWindow.cyoffset);
+    cell.col = Math.floor(x / editorWindow.cxoffset);
     return cell;
 }
 
 const onCanvasMove = (event) => {
-    if (player) { return false };
+    if (animationOn) { return false };
     const newCell = locateCell(event);
-    if (!sameCell(currentCell,newCell)) {
+    if (!sameCell(currentCell, newCell)) {
         if (event.buttons > 0) {
             clickOnCanvas(event);
         }
@@ -390,18 +524,18 @@ const onCanvasMove = (event) => {
 }
 
 const clickOnCanvas = (event) => {
-    if (player) { return false };
+    if (animationOn) { return false };
     let color = workspace.selectedColor;
     if (event.buttons == 2) { // right button
-            color = 0;
+        color = 0;
     }
     currentCell = locateCell(event);
     //console.log(`x: ${currentCell.col} y: ${currentCell.row} c: ${color}`);
-    setColorOn(currentCell.col,currentCell.row,color);
+    setColorOn(currentCell.col, currentCell.row, color);
 }
 
 const clickRightOnCanvas = (event) => {
-    if (player) { return false };
+    if (animationOn) { return false };
     event.preventDefault();
     return false;
 }
@@ -414,117 +548,107 @@ const drawingEnded = () => {
 }
 
 const onMouseOut = (e) => {
-    if (player) { return false };
+    if (animationOn) { return false };
     if (e.buttons > 0) {
         drawingEnded();
     }
 }
 
-const getWidthMultiplier = () => options.squarePixel?1:1.2;
-
+const getWidthMultiplier = () => options.squarePixel ? 1 : 1.2;
 
 const newCanvas = () => {
-    editorWindow.columns = 8 + options.spriteGap;
-    editorWindow.cwidth = getWidthMultiplier() * options.cellSize;
+    editorWindow.columns01 = spriteWidthPerMode[options.mergeMode] + options.spriteGap01;
+    editorWindow.columns23 = spriteWidthPerMode[options.mergeMode] + options.spriteGap23;
+    editorWindow.columns = isPlayer23Mode() ? Math.max(editorWindow.columns01, editorWindow.columns23 + options.pairGap) : editorWindow.columns01;
+    editorWindow.cwidth = getWidthMultiplier() * zoomCellSize[options.cellSize];
     editorWindow.cxoffset = editorWindow.cwidth + options.showGrid;
-    editorWindow.cheight = Math.floor(options.cellSize / options.lineResolution);
+    editorWindow.cheight = Math.floor(zoomCellSize[options.cellSize] / options.lineResolution);
     editorWindow.cyoffset = editorWindow.cheight + options.showGrid;
-    editorWindow.swidth =  editorWindow.columns * editorWindow.cxoffset - options.showGrid;
+    editorWindow.swidth = editorWindow.columns * editorWindow.cxoffset - options.showGrid;
     editorWindow.sheight = options.spriteHeight * editorWindow.cyoffset - options.showGrid;
 
     $('#editor_box').empty();
     const cnv = $('<canvas/>')
-    .attr('id','editor_canvas')
-    .attr('width',editorWindow.swidth)
-    .attr('height',editorWindow.sheight)
-    .contextmenu(clickRightOnCanvas)
-    .bind('mousedown',clickOnCanvas)
-    .bind('mousemove',onCanvasMove)
-    .bind('mouseup',drawingEnded)
-    .bind('mouseleave',onMouseOut)
+        .attr('id', 'editor_canvas')
+        .attr('width', editorWindow.swidth)
+        .attr('height', editorWindow.sheight)
+        .contextmenu(clickRightOnCanvas)
+        .bind('mousedown', clickOnCanvas)
+        .bind('mousemove', onCanvasMove)
+        .bind('mouseup', drawingEnded)
+        .bind('mouseleave', onMouseOut)
 
     $('#editor_box').append(cnv);
-    editor = cnv[0].getContext('2d');
-    // editor.translate(0.5, 0.5);
-    // editor.imageSmoothingEnabled = false;
+    editorCtx = cnv[0].getContext('2d');
+    // editorCtx.translate(0.5, 0.5);
+    // editorCtx.imageSmoothingEnabled = false;
 }
 
 const getFrameImage = (frame, scalex, scaley) => {
     scalex *= getWidthMultiplier();
-    const w = Math.floor((8 + options.spriteGap) * scalex);
+    const w = Math.floor((editorWindow.columns) * scalex);
     const h = Math.floor(options.spriteHeight * scaley);
     const cnv = $('<canvas/>')
-    .addClass('framepreview')
-    .attr('width', w)
-    .attr('height', h)
+        .addClass('framepreview')
+        .attr('width', w)
+        .attr('height', h)
     const ctx = cnv[0].getContext('2d');
     //ctx.translate(0.5, 0.5);
     //ctx.imageSmoothingEnabled = false;
     const imageData = ctx.createImageData(w, h);
-    for (let row=0;row<h;row++) {
-        for (let col=0;col<w;col++) {
+    for (let row = 0; row < options.spriteHeight; row++) {
+        for (let col = 0; col < editorWindow.columns; col++) {
             const crgb = getRGBOn(frame, col, row);
             ctx.fillStyle = crgb;
             ctx.lineWidth = 2;
-            ctx.fillRect(Math.ceil(col*scalex),row*scaley,Math.ceil(scalex),Math.ceil(scaley));
+            ctx.fillRect(Math.ceil(col * scalex), row * scaley, Math.ceil(scalex), Math.ceil(scaley));
         }
     }
     return cnv
 }
 
-const clearSprites = () => {
-    sprite.data[0] = [];
-    sprite.data[1] = [];
-    for (let i=0; i<options.spriteHeight; i++) {
-        sprite.data[0][i] = 0; 
-        sprite.data[1][i] = 0; 
-    }
-}
-
-const drawBlock = (x,y,crgb) => {
-    editor.fillStyle = crgb;
-    editor.lineWidth = 0;
-    editor.fillRect(x * editorWindow.cxoffset - options.showGrid, y * editorWindow.cyoffset - options.showGrid, editorWindow.cwidth, editorWindow.cheight);
+const drawBlock = (x, y, crgb) => {
+    editorCtx.fillStyle = crgb;
+    editorCtx.lineWidth = 0;
+    editorCtx.fillRect(x * editorWindow.cxoffset - options.showGrid, y * editorWindow.cyoffset - options.showGrid, editorWindow.cwidth, editorWindow.cheight);
 }
 
 const drawEditor = () => {
-    editor.clearRect(0,0,editorWindow.swidth,editorWindow.sheight);
-    for (let row=0;row<options.spriteHeight;row++) {
-        for (let col=0;col<editorWindow.columns;col++) {
+    editorCtx.clearRect(0, 0, editorWindow.swidth, editorWindow.sheight);
+    for (let row = 0; row < options.spriteHeight; row++) {
+        for (let col = 0; col < editorWindow.columns; col++) {
             drawBlock(col, row, getRGBOn(workspace.selectedFrame, col, row));
         }
     }
-    if(options.showGrid>0) {
+    if (options.showGrid > 0) {
         drawGrid();
     }
     $("#framepreview").empty();
-    $("#framepreview").append(getFrameImage(workspace.selectedFrame,3,3/options.lineResolution));
-    $("#framepreview").append(getFrameImage(workspace.selectedFrame,6,3/options.lineResolution));
-    $("#framepreview").append(getFrameImage(workspace.selectedFrame,12,3/options.lineResolution).addClass('clear_left'));
+    $("#framepreview").append(getFrameImage(workspace.selectedFrame, 3, 3 / options.lineResolution));
+    $("#framepreview").append(getFrameImage(workspace.selectedFrame, 6, 3 / options.lineResolution));
+    $("#framepreview").append(getFrameImage(workspace.selectedFrame, 12, 3 / options.lineResolution).addClass('clear_left'));
     $(`#fbox_${workspace.selectedFrame}`).children().last().remove();
-    $(`#fbox_${workspace.selectedFrame}`).append(getFrameImage(workspace.selectedFrame,4,4/options.lineResolution));
+    $(`#fbox_${workspace.selectedFrame}`).append(getFrameImage(workspace.selectedFrame, 4, 4 / options.lineResolution));
 }
 
 const drawTimeline = () => {
     $('#framelist').empty();
     if (workspace.selectedFrame >= workspace.frames) {
-        workspace.selectedFrame = workspace.frames-1;
+        workspace.selectedFrame = workspace.frames - 1;
     }
-    _.each(workspace.frames, (frame,f) => {
-        const cnv = getFrameImage(f,4,4/options.lineResolution)
+    _.each(workspace.frames, (frame, f) => {
+        const cnv = getFrameImage(f, 4, 4 / options.lineResolution)
         const framebox = $("<div/>")
-        .addClass('framebox')
-        .attr('id',`fbox_${f}`)
-        .append(`<div>$${decimalToHex(f)}</div>`)
-        .bind('mousedown',frameboxClicked)
-        .append(cnv)
+            .addClass('framebox')
+            .attr('id', `fbox_${f}`)
+            .append(`<div>$${decimalToHex(f)}</div>`)
+            .bind('mousedown', frameboxClicked)
+            .append(cnv)
 
-        if (f==workspace.selectedFrame) {
+        if (f == workspace.selectedFrame) {
             framebox.addClass('currentFrame');
         }
-
         $('#framelist').append(framebox);
-        //console.log(f,frame);
     });
 }
 
@@ -535,29 +659,28 @@ const updateScreen = () => {
 }
 
 const frameboxClicked = e => {
-    if (player) { return false };
-    const f = Number(_.last(_.split(e.target.id,'_')));
-    //console.log(e.target);
+    if (animationOn) { return false };
+    const f = Number(_.last(_.split(e.target.id, '_')));
     jumpToFrame(f);
 }
 
-const drawGridLine = (x1,y1,x2,y2) => {
-    editor.beginPath();
-    editor.moveTo(x1, y1);
-    editor.lineTo(x2, y2);
-    editor.lineWidth = options.showGrid;
-    editor.strokeStyle = GRID_COLOR;
-    editor.stroke();
+const drawGridLine = (x1, y1, x2, y2) => {
+    editorCtx.beginPath();
+    editorCtx.moveTo(x1, y1);
+    editorCtx.lineTo(x2, y2);
+    editorCtx.lineWidth = options.showGrid;
+    editorCtx.strokeStyle = GRID_COLOR;
+    editorCtx.stroke();
 };
 
 const drawGrid = () => {
-    for (let row=1;row<options.spriteHeight;row++) {
+    for (let row = 1; row < options.spriteHeight; row++) {
         const y = (editorWindow.cyoffset * row) - options.showGrid;
-        drawGridLine(0,y,editorWindow.swidth,y);
+        drawGridLine(0, y, editorWindow.swidth, y);
     }
-    for (let col=1;col<editorWindow.columns;col++) {
+    for (let col = 1; col < editorWindow.columns; col++) {
         const x = (editorWindow.cxoffset * col) - options.showGrid;
-        drawGridLine(x,0,x,editorWindow.sheight);
+        drawGridLine(x, 0, x, editorWindow.sheight);
     }
 }
 
@@ -613,20 +736,20 @@ const valIntInput = (inputId) => {
     return true;
 }
 
-const clampOption = (inputId,min,max) => {
+const clampOption = (inputId, min, max) => {
     const idiv = $(`#opt_${inputId}_i`);
     const uint = userIntParse(idiv.val());
-    idiv.val(uint.clamp(min,max));
+    idiv.val(uint.clamp(min, max));
 }
 
 const refreshOptions = () => {
     const opts = _.filter($("select, input"), opt => {
-        return _.startsWith($(opt).attr('id'),'opt_');
+        return _.startsWith($(opt).attr('id'), 'opt_');
     });
     const newopts = {};
     _.each(opts, opt => {
         const opt_id = $(opt).attr('id');
-        const opt_name = _.split(opt_id ,'_');
+        const opt_name = _.split(opt_id, '_');
         const opt_type = opt_name[2];
         const opt_val = options[opt_name[1]];
         $(`#${opt_id}`).val(opt_val);
@@ -640,17 +763,24 @@ const validateOptions = () => {
     $('.dialog_text_input').removeClass('warn');
     if (!valIntInput('bytesPerLine')) return false;
     if (!valIntInput('spriteHeight')) return false;
-    if (!valIntInput('spriteGap')) return false;
+    if (!valIntInput('spriteGap01')) return false;
+    if (!valIntInput('spriteGap23')) return false;
+    if (!valIntInput('pairGap')) return false;
     if (!valIntInput('animationSpeed')) return false;
     if (!valIntInput('lineStep')) return false;
     if (!valIntInput('startingLine')) return false;
-
-    clampOption('bytesPerLine',1,100000);
-    clampOption('spriteHeight',1,128);
-    clampOption('spriteGap',0,8);
-    clampOption('animationSpeed',1,100);
-    
+    if (!valIntInput('cellSize')) return false;
     return true;
+}
+
+const clampOptions = () => {
+    clampOption('bytesPerLine', 1, 100000);
+    clampOption('spriteHeight', 1, 128);
+    clampOption('spriteGap01', 0, isMissileMode() ? 10 : 8);
+    clampOption('spriteGap23', 0, isMissileMode() ? 10 : 8);
+    clampOption('pairGap', 0, isMissileMode() ? 20 : 16);
+    clampOption('animationSpeed', 1, 100);
+    clampOption('cellSize', 0, zoomCellSize.length - 1);
 }
 
 const storeOptions = () => {
@@ -668,13 +798,13 @@ const loadOptions = () => {
 
 const updateOptions = () => {
     const opts = _.filter($("select, input"), opt => {
-        return _.startsWith($(opt).attr('id'),'opt_');
+        return _.startsWith($(opt).attr('id'), 'opt_');
     });
     const newopts = {};
     _.each(opts, opt => {
         const opt_id = $(opt).attr('id');
-        const opt_name = _.split(opt_id ,'_');
-        let opt_value =  $(`#${opt_id}`).val();
+        const opt_name = _.split(opt_id, '_');
+        let opt_value = $(`#${opt_id}`).val();
         const opt_type = opt_name[2];
         if (opt_type == 'i') {
             newopts[opt_name[1]] = Number(opt_value);
@@ -684,7 +814,7 @@ const updateOptions = () => {
         };
         if (opt_type == 'b') {
             newopts[opt_name[1]] = $(`#${opt_id}`).prop('checked');
-        };        
+        };
     })
     _.assignIn(options, newopts);
     storeOptions();
@@ -693,10 +823,12 @@ const updateOptions = () => {
 const saveOptions = () => {
     if (validateOptions()) {
         updateOptions();
+        clampOptions();
+        updateOptions();
         closeAllDialogs();
     }
     newCanvas();
-    if (player) {
+    if (animationOn) {
         stopPlayer();
         startPlayer();
     }
@@ -706,7 +838,7 @@ const saveOptions = () => {
 // ************************************ WORKSPACE STORAGE
 
 const storeWorkspace = () => {
-     localStorage.setItem(`${defaultOptions.storageName}_WS`, JSON.stringify(workspace));
+    localStorage.setItem(`${defaultOptions.storageName}_WS`, JSON.stringify(workspace));
 }
 
 const storeUndos = () => {
@@ -730,13 +862,13 @@ const loadUndos = () => {
 }
 
 const loadWorkspace = () => {
-     if (!localStorage.getItem(`${defaultOptions.storageName}_WS`)) {
-         workspace = _.assignIn({}, _.clone(defaultWorkspace));
-         workspace.frames.push(getEmptyFrame());
-         storeWorkspace();
-     } else {
-         workspace = _.assignIn({}, _.clone(defaultWorkspace), JSON.parse(localStorage.getItem(`${defaultOptions.storageName}_WS`)));
-     }
+    if (!localStorage.getItem(`${defaultOptions.storageName}_WS`)) {
+        workspace = _.assignIn({}, _.clone(defaultWorkspace));
+        workspace.frames.push(getEmptyFrame());
+        storeWorkspace();
+    } else {
+        workspace = _.assignIn({}, _.clone(defaultWorkspace), JSON.parse(localStorage.getItem(`${defaultOptions.storageName}_WS`)));
+    }
 }
 
 // *********************************** EXPORT / LOAD / SAVE
@@ -748,7 +880,7 @@ const exportData = () => {
 }
 
 const parseTemplate = (template) => {
-   
+
     let templateLines = '';
     let byteInRow = 0;
     let lineCount = 0;
@@ -759,35 +891,35 @@ const parseTemplate = (template) => {
 
     const formatByte = b => {
         let optFormat = options.bytesExport;
-        if (template.byte.forceNumeric=='DEC') {
+        if (template.byte.forceNumeric == 'DEC') {
             optFormat = 'DEC';
         }
-        if (template.byte.forceNumeric=='HEX') {
+        if (template.byte.forceNumeric == 'HEX') {
             optFormat = 'HEX';
         }
-        if (template.byte.forceNumeric=='BIN') {
+        if (template.byte.forceNumeric == 'BIN') {
             optFormat = 'BIN';
         }
         if (optFormat == 'HEX') {
-            return `${template.byte.hexPrefix?template.byte.hexPrefix:''}${decimalToHex(userIntParse(b))}`;
-        } 
+            return `${template.byte.hexPrefix ? template.byte.hexPrefix : ''}${decimalToHex(userIntParse(b))}`;
+        }
         if (optFormat == 'BIN') {
-            return `${template.byte.binPrefix?template.byte.binPrefix:''}${decimalToBin(userIntParse(b))}`;
-        } 
+            return `${template.byte.binPrefix ? template.byte.binPrefix : ''}${decimalToBin(userIntParse(b))}`;
+        }
         return b;
     }
 
     const parseTemplateVars = (template) => {
         return template
-        .replace(/#height#/g, formatByte(options.spriteHeight))
-        .replace(/#gap#/g, formatByte(options.spriteGap))
-        .replace(/#frames#/g, formatByte(workspace.frames.length))
-        .replace(/#maxheight#/g, formatByte(options.spriteHeight-1))
-        .replace(/#maxframes#/g, formatByte(workspace.frames.length-1))
-        .replace(/#-1#/g, options.startingLine-1)
-        .replace(/#-2#/g, options.startingLine-2)
-
-            
+            .replace(/#height#/g, formatByte(options.spriteHeight))
+            .replace(/#gap01#/g, formatByte(options.spriteGap01))
+            .replace(/#gap23#/g, formatByte(options.spriteGap23))
+            .replace(/#pairgap#/g, formatByte(options.pairGap))
+            .replace(/#frames#/g, formatByte(workspace.frames.length))
+            .replace(/#maxheight#/g, formatByte(options.spriteHeight - 1))
+            .replace(/#maxframes#/g, formatByte(workspace.frames.length - 1))
+            .replace(/#-1#/g, options.startingLine - 1)
+            .replace(/#-2#/g, options.startingLine - 2)
     }
 
     const getBlock = (block, blockTemp) => {
@@ -799,12 +931,12 @@ const parseTemplate = (template) => {
 
     const pushBlock = (block, blockTemp) => {
         templateLines += getBlock(block, blockTemp);
-    }    
-    
+    }
+
     const pushLine = (line, last) => {
-        const num = (template.line.numbers) ? `${options.startingLine + options.lineStep * lineCount} `:'';
+        const num = (template.line.numbers) ? `${options.startingLine + options.lineStep * lineCount} ` : '';
         lineCount++;
-        lines += `${num}${template.line.prefix}${line}${last?template.line.lastpostfix || template.line.postfix:template.line.postfix}`;
+        lines += `${num}${template.line.prefix}${line}${last ? template.line.lastpostfix || template.line.postfix : template.line.postfix}`;
         byteInRow = 0;
         lineBody = '';
     }
@@ -813,7 +945,7 @@ const parseTemplate = (template) => {
         byteInRow++;
         if (byteInRow == options.bytesPerLine || last) {
             if (template.line.preserveLastSeparator) {
-                lineBody += template.byte.separator 
+                lineBody += template.byte.separator
             }
             byteInRow = 0;
             pushLine(lineBody, last);
@@ -829,12 +961,12 @@ const parseTemplate = (template) => {
     const pushSpriteColors = s => {
         lines = '';
         tsprite = s;
-        pushArray(_.map(workspace.frames,f=>f.colors[s]));
+        pushArray(_.map(workspace.frames, f => f.colors[s]));
         pushBlock(lines, template.colors);
     }
 
     const pushArray = a => {
-        _.each(a,(v,i) => {pushByte(v & 0xFF, i==a.length-1)});
+        _.each(a, (v, i) => { pushByte(v & 0xFF, i == a.length - 1) });
         if (byteInRow > 0) {
             pushLine(lineBody, true);
         }
@@ -843,37 +975,81 @@ const parseTemplate = (template) => {
     const pushSpriteData = s => {
         let sprite = '';
         tsprite = s;
-        _.each(workspace.frames, (frame,f) => {
+        _.each(workspace.frames, (frame, f) => {
+            const merged = new Array(options.spriteHeight).fill(0);
             lines = '';
             tframe = f;
-            frame.data[s].length = options.spriteHeight;
-            pushArray(frame.data[s])
+            frame.player[s].length = options.spriteHeight;
+            frame.missile[s].length = options.spriteHeight;
+            _.each(frame.player[s], (p,row) => {
+                if (isMissileOnLeft()) {
+                    merged[row] = (p << 2) | frame.missile[s][row];
+                } else {
+                    merged[row] = p;
+                }
+            });
+            pushArray(merged);
             sprite += getBlock(lines, template.frame);
-        });   
+        });
         pushBlock(sprite, template.sprite);
     }
 
-    pushSpriteColors(0);
-    pushSpriteColors(1);
-    pushSpriteData(0);
-    pushSpriteData(1);
+    const pushMissileData = () => {
+        let missiles = '';
+        _.each(workspace.frames, (frame, f) => {
+            const merged = new Array(options.spriteHeight).fill(0);
+            lines = '';
+            tframe = f;
+            for (let p=0; p<playerCount(); p++) {
+                _.each(frame.missile[p], (m, row) => {
+                    if (isMissileOnLeft()) {
+                        merged[row] |= (frame.player[p][row] >> 6) << (p*2);
+                    } else {
+                        merged[row] |= m << (p*2);
+                    }
+                });
+            };
+            pushArray(merged);
+            missiles += getBlock(lines, template.frame);
+        });
+        pushBlock(missiles, template.missiles);
+    }
 
-    return parseTemplateVars(`${template.block.prefix}${templateLines}${template.block.postfix}`);
+    for (let p=0; p<playerCount(); p++) { pushSpriteColors(p) };
+
+    for (let p=0; p<playerCount(); p++) { pushSpriteData(p) };
+
+    if (isMissileMode()) { pushMissileData() };
+
+    const parsed = isPlayer23Mode()?
+        parseTemplateVars(`${template.block.prefix23||template.block.prefix}${templateLines}${template.block.postfix}`):
+        parseTemplateVars(`${template.block.prefix}${templateLines}${template.block.postfix}`);
+    return parsed;
 }
 
 const saveFile = () => {
     const name = prompt('set filename of saved file:', 'mysprites.spr');
     let binList = [];
-    let listByte = 0;
     binList.push(sprHeader);
-    binList.push(workspace.selectedFrame,workspace.selectedColor,workspace.backgroundColor);
-    binList.push(options.animationSpeed,options.palette=='PAL'?0:1,options.lineResolution);
-    binList.push([0,0,0,0,0,0]); // 6 unused bytes
-    binList.push(workspace.frames.length,options.spriteHeight,options.spriteGap);
-    binList.push(_.map(workspace.frames,f=>f.colors[0]));
-    binList.push(_.map(workspace.frames,f=>f.colors[1]));
-    _.each(workspace.frames,f=>{f.data[0].length=options.spriteHeight;binList.push(f.data[0])});
-    _.each(workspace.frames,f=>{f.data[1].length=options.spriteHeight;binList.push(f.data[1])});
+    binList.push(workspace.selectedFrame, workspace.selectedColor, workspace.backgroundColor);
+    binList.push(options.animationSpeed, options.palette == 'PAL' ? 0 : 1, options.lineResolution);
+    binList.push(options.mergeMode)
+    binList.push(options.spriteGap01)
+    binList.push(options.spriteGap23)
+    binList.push(options.pairGap)
+    binList.push([0, 0, 0]); // 3 unused bytes
+    binList.push(workspace.frames.length, options.spriteHeight);
+    for (let p = 0; p < playerCount(); p++) {
+        binList.push(_.map(workspace.frames, f => f.colors[p]));
+    }
+    for (let p = 0; p < playerCount(); p++) {
+        _.each(workspace.frames, f => { f.player[p].length = options.spriteHeight; binList.push(f.player[p]) });
+    }
+    if (isMissileMode()) {
+        for (let p = 0; p < playerCount(); p++) {
+            _.each(workspace.frames, f => { f.missile[p].length = options.spriteHeight; binList.push(f.missile[p]) });
+        }
+    }
     binList = _.flatMap(binList);
     var a = document.createElement('a');
     document.body.appendChild(a);
@@ -896,11 +1072,11 @@ const parseBinary = (binData) => {
 
     const parseError = msg => { alert(msg); }
 
-    const areEqual = (a1,a2) => {
+    const areEqual = (a1, a2) => {
         if (a1.length != a2.length) {
             return false;
         }
-        for (let i=0;i<a1.length;i++) {
+        for (let i = 0; i < a1.length; i++) {
             if (a1[i] != a2[i]) {
                 return false;
             }
@@ -910,7 +1086,7 @@ const parseBinary = (binData) => {
 
     const binSize = binData.length;
     let binPtr = 0;
-    let id = 0;    
+    let id = 0;
 
     const parseAPL = fsize => {
         fsize = fsize || 48;
@@ -919,38 +1095,39 @@ const parseBinary = (binData) => {
         binPtr = 4;
         const aplFrames = binData[binPtr++];
         options.spriteHeight = binData[binPtr++];
-        options.spriteGap = binData[binPtr++];
-        for(let f=0;f<17;f++) {
+        options.spriteGap01 = binData[binPtr++];
+        for (let f = 0; f < 17; f++) {
             const frame = {
-                data: [[],[]],
+                player: [[], [], [], []],
+                missile: [[], [], [], []],
                 colors: [binData[binPtr++]]
             }
             wrkspc.frames.push(frame);
         }
-        for(let f=0;f<17;f++) {
+        for (let f = 0; f < 17; f++) {
             wrkspc.frames[f].colors.push(binData[binPtr++]);
         }
         wrkspc.backgroundColor = binData[binPtr++];
-        for(let f=0;f<17;f++) {
-            wrkspc.frames[f].data[0] = Array.from(binData.subarray(binPtr,binPtr+fsize));
+        for (let f = 0; f < 17; f++) {
+            wrkspc.frames[f].player[0] = Array.from(binData.subarray(binPtr, binPtr + fsize));
             binPtr += fsize;
         }
-        for(let f=0;f<17;f++) {
-            wrkspc.frames[f].data[1] = Array.from(binData.subarray(binPtr,binPtr+fsize));
+        for (let f = 0; f < 17; f++) {
+            wrkspc.frames[f].player[1] = Array.from(binData.subarray(binPtr, binPtr + fsize));
             binPtr += fsize;
         }
         wrkspc.selectedFrame = binData[binPtr++];
         wrkspc.selectedColor = binData[binPtr++];
         options.animationSpeed = binData[binPtr++];
-        options.palette = (binData[binPtr++]==1)?'NTSC':'PAL';
+        options.palette = (binData[binPtr++] == 1) ? 'NTSC' : 'PAL';
         wrkspc.frames.length = aplFrames;
-        return wrkspc;      
+        return wrkspc;
     }
-    
-    if (areEqual(aplHeader,binData.subarray(0,4))) {               // PARSE APL 
+
+    if (areEqual(aplHeader, binData.subarray(0, 4))) {               // PARSE APL 
         return parseAPL();
-        
-    } else if (areEqual(sprHeader,binData.subarray(0,4))) {            // PARSE SPR 
+
+    } else if (areEqual(sprHeader, binData.subarray(0, 4))) {            // PARSE SPR 
 
         const wrkspc = _.clone(defaultWorkspace);
         wrkspc.frames = [];
@@ -959,38 +1136,56 @@ const parseBinary = (binData) => {
         wrkspc.selectedColor = binData[binPtr++];
         wrkspc.backgroundColor = binData[binPtr++];
         options.animationSpeed = binData[binPtr++];
-        options.palette = (binData[binPtr++]==1)?'NTSC':'PAL';
+        options.palette = (binData[binPtr++] == 1) ? 'NTSC' : 'PAL';
         options.lineResolution = binData[binPtr++];
-        binPtr += 6; // unused bytes
-        const aplFrames = binData[binPtr++];
-        options.spriteHeight = binData[binPtr++];
-        options.spriteGap = binData[binPtr++];
+        options.mergeMode = binData[binPtr++];
+        options.spriteGap01 = binData[binPtr++];
+        options.spriteGap23 = binData[binPtr++];
+        options.pairGap = binData[binPtr++];
+        binPtr += 2; // unused bytes
+        let frameCount = binData[binPtr++];
+        
+        if (frameCount != 0) {                       // P0-P1 old format - preserved for compatibility
+            options.spriteHeight = binData[binPtr++];
+            options.spriteGap01 = binData[binPtr++];
+        } else {                                      // all other modes
+            frameCount = binData[binPtr++];
+            options.spriteHeight = binData[binPtr++];
+        }
 
-        for(let f=0;f<aplFrames;f++) {
+        for (let f = 0; f < frameCount; f++) {
             const frame = {
-                data: [[],[]],
+                player: [[], [], [], []],
+                missile: [[], [], [], []],
                 colors: [binData[binPtr++]]
             }
             wrkspc.frames.push(frame);
         }
-        for(let f=0;f<aplFrames;f++) {
-            wrkspc.frames[f].colors.push(binData[binPtr++]);
+        for (let p = 1; p < playerCount(); p++) {
+            for (let f = 0; f < frameCount; f++) {
+                wrkspc.frames[f].colors.push(binData[binPtr++]);
+            }
         }
-        for(let f=0;f<aplFrames;f++) {
-            wrkspc.frames[f].data[0] = Array.from(binData.subarray(binPtr,binPtr+options.spriteHeight));
-            binPtr += options.spriteHeight;
+        for (let p = 0; p < playerCount(); p++) {
+            for (let f = 0; f < frameCount; f++) {
+                wrkspc.frames[f].player[p] = Array.from(binData.subarray(binPtr, binPtr + options.spriteHeight));
+                binPtr += options.spriteHeight;
+            }
         }
-        for(let f=0;f<aplFrames;f++) {
-            wrkspc.frames[f].data[1] = Array.from(binData.subarray(binPtr,binPtr+options.spriteHeight));
-            binPtr += options.spriteHeight;
+        if (isMissileMode()) {
+            for (let p = 0; p < playerCount(); p++) {
+                for (let f = 0; f < frameCount; f++) {
+                    wrkspc.frames[f].missile[p] = Array.from(binData.subarray(binPtr, binPtr + options.spriteHeight));
+                    binPtr += options.spriteHeight;
+                }
+            }
         }
-        wrkspc.frames.length = aplFrames;
+
+        wrkspc.frames.length = frameCount;
         return wrkspc;
 
-    }  else if (areEqual(apl2Header,binData.subarray(0,4))) {    // PARSE APL+ (52 rows)
-        
+    } else if (areEqual(apl2Header, binData.subarray(0, 4))) {    // PARSE APL+ (52 rows)
         return parseAPL(52);
-
     } else {
         parseError('unknown format!')
         return false;
@@ -1037,7 +1232,7 @@ const jumpToFrame = f => {
 const jumpToNextFrame = () => {
     workspace.selectedFrame++;
     if (workspace.selectedFrame >= workspace.frames.length) {
-        workspace.selectedFrame = 0;    
+        workspace.selectedFrame = 0;
     }
     updateScreen();
 }
@@ -1045,13 +1240,13 @@ const jumpToNextFrame = () => {
 const jumpToPrevFrame = () => {
     workspace.selectedFrame--;
     if (workspace.selectedFrame < 0) {
-        workspace.selectedFrame = workspace.frames.length - 1;    
+        workspace.selectedFrame = workspace.frames.length - 1;
     }
     updateScreen();
 }
 
 const deleteAll = () => {
-    if (player) { return false };
+    if (animationOn) { return false };
     if (confirm('Do you really want to delete and erase all frames?  NO UNDO!')) {
         workspace.frames.length = 1;
         workspace.selectedFrame = 0;
@@ -1066,10 +1261,12 @@ const deleteAll = () => {
 }
 
 const clearFrame = () => {
-    if (player) { return false };
-    for (let r=0;r<options.spriteHeight;r++) {
-        workspace.frames[workspace.selectedFrame].data[0][r] = 0;
-        workspace.frames[workspace.selectedFrame].data[1][r] = 0;
+    if (animationOn) { return false };
+    for (let r = 0; r < options.spriteHeight; r++) {
+        for (p = 0; p < 4; p++) {
+            workspace.frames[workspace.selectedFrame].player[p][r] = 0;
+            workspace.frames[workspace.selectedFrame].missile[p][r] = 0;
+        }
     }
     drawEditor();
     storeWorkspace();
@@ -1077,62 +1274,62 @@ const clearFrame = () => {
 }
 
 const startPlayer = () => {
-    if ((player == 0) && !playerInterval && (workspace.frames.length>1)) {
-        player = 1;
-        playerInterval = setInterval(jumpToNextFrame,options.animationSpeed*20);
+    if ((animationOn == 0) && !playerInterval && (workspace.frames.length > 1)) {
+        animationOn = 1;
+        playerInterval = setInterval(jumpToNextFrame, options.animationSpeed * 20);
         $("#timeline li").first().addClass('red');
     }
 }
 
 const stopPlayer = () => {
-    player = 0;
+    animationOn = 0;
     clearInterval(playerInterval);
     $("#timeline li").first().removeClass('red');
     playerInterval = null;
 }
 
 const cloneFrame = () => {
-    if (player) { return false };    
+    if (animationOn) { return false };
     const newframe = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
-    workspace.frames.splice(workspace.selectedFrame,0,newframe);
-    jumpToFrame(workspace.selectedFrame+1);
-    storeWorkspace();    
+    workspace.frames.splice(workspace.selectedFrame, 0, newframe);
+    jumpToFrame(workspace.selectedFrame + 1);
+    storeWorkspace();
     return true;
 }
 
 const animFrameLeft = () => {
-    if (player) { return false };    
-    if (workspace.selectedFrame == 0) {return false}
+    if (animationOn) { return false };
+    if (workspace.selectedFrame == 0) { return false }
     const newframe = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
-    workspace.frames.splice(workspace.selectedFrame,1);
-    workspace.frames.splice(workspace.selectedFrame-1,0,newframe);
-    jumpToFrame(workspace.selectedFrame-1);
-    storeWorkspace();    
+    workspace.frames.splice(workspace.selectedFrame, 1);
+    workspace.frames.splice(workspace.selectedFrame - 1, 0, newframe);
+    jumpToFrame(workspace.selectedFrame - 1);
+    storeWorkspace();
 }
 
 const animFrameRight = () => {
-    if (player) { return false };    
-    if (workspace.selectedFrame == workspace.frames.length-1) {return false}
+    if (animationOn) { return false };
+    if (workspace.selectedFrame == workspace.frames.length - 1) { return false }
     const newframe = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
-    workspace.frames.splice(workspace.selectedFrame,1);
-    workspace.frames.splice(workspace.selectedFrame+1,0,newframe);
-    jumpToFrame(workspace.selectedFrame+1);
+    workspace.frames.splice(workspace.selectedFrame, 1);
+    workspace.frames.splice(workspace.selectedFrame + 1, 0, newframe);
+    jumpToFrame(workspace.selectedFrame + 1);
     storeWorkspace();
 }
 
 const addFrame = () => {
-    if (player) { return false };    
+    if (animationOn) { return false };
     const newframe = getEmptyFrame();
-    workspace.frames.splice(workspace.selectedFrame+1,0,newframe);
-    jumpToFrame(workspace.selectedFrame+1);
+    workspace.frames.splice(workspace.selectedFrame + 1, 0, newframe);
+    jumpToFrame(workspace.selectedFrame + 1);
     storeWorkspace();
     return true;
 }
 
 const delFrame = () => {
-    if (player) { return false };    
-    if (workspace.frames.length>1) {
-        workspace.frames.splice(workspace.selectedFrame,1);
+    if (animationOn) { return false };
+    if (workspace.frames.length > 1) {
+        workspace.frames.splice(workspace.selectedFrame, 1);
         if (!workspace.frames[workspace.selectedFrame]) {
             workspace.selectedFrame--;
         }
@@ -1142,30 +1339,49 @@ const delFrame = () => {
     return true;
 }
 
+const zoomIn = () => {
+    if (options.cellSize < zoomCellSize.length - 1) {
+        options.cellSize++;
+        storeOptions();
+        newCanvas();
+        updateScreen();
+    }
+}
+
+const zoomOut = () => {
+    if (options.cellSize > 0) {
+        options.cellSize--;
+        storeOptions();
+        newCanvas();
+        updateScreen();
+    }
+}
+
 // ************************************ FRAME OPERATION
 
 const copyColors = () => {
-    if (player || options.commonPalette) { return false };
+    if (animationOn || options.commonPalette) { return false };
     workspace.clipBoard.colors = _.cloneDeep(workspace.frames[workspace.selectedFrame].colors);
 }
 
 const pasteColors = () => {
-    if (player || options.commonPalette) { return false };
+    if (animationOn || options.commonPalette) { return false };
     if (workspace.clipBoard.colors) {
         workspace.frames[workspace.selectedFrame].colors = _.cloneDeep(workspace.clipBoard.colors);
     }
     drawEditor();
+    updateColors();
     storeWorkspace();
     return true;
 }
 
 const copyFrame = () => {
-    if (player) { return false };
+    if (animationOn) { return false };
     workspace.clipBoard.frame = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
 }
 
 const pasteFrame = () => {
-    if (player) { return false };
+    if (animationOn) { return false };
     if (workspace.clipBoard.frame) {
         workspace.frames[workspace.selectedFrame] = _.cloneDeep(workspace.clipBoard.frame);
     }
@@ -1177,38 +1393,123 @@ const pasteFrame = () => {
 const flip8Bits = b => reversedBytes[b];
 
 const flipHFrame = () => {
-    if (player) { return false };
-    for (let row=0;row<options.spriteHeight;row++){
-        const b0 = reversedBytes[workspace.frames[workspace.selectedFrame].data[0][row]];
-        const b1 = reversedBytes[workspace.frames[workspace.selectedFrame].data[1][row]];
-        if (options.spriteGap > 0) {
-            workspace.frames[workspace.selectedFrame].data[0][row] = b1;
-            workspace.frames[workspace.selectedFrame].data[1][row] = b0;
-            const c = workspace.frames[workspace.selectedFrame].colors[0];
-            workspace.frames[workspace.selectedFrame].colors[0] = workspace.frames[workspace.selectedFrame].colors[1];
-            workspace.frames[workspace.selectedFrame].colors[1] = c;
-            updateColors();
-        } else {
-            workspace.frames[workspace.selectedFrame].data[0][row] = b0;
-            workspace.frames[workspace.selectedFrame].data[1][row] = b1;
+    if (animationOn) { return false };
+    const cf = workspace.frames[workspace.selectedFrame];
+    for (let row = 0; row < options.spriteHeight; row++) {
+        if (!isMissileMode()) {
+            const b = _.map(cf.player, r => { return reversedBytes[r[row]] })
+
+            if (options.spriteGap01 > 0) {
+                cf.player[0][row] = b[1];
+                cf.player[1][row] = b[0];
+            } else {
+                cf.player[0][row] = b[0];
+                cf.player[1][row] = b[1];
+            }
+
+            if (options.spriteGap23 > 0) {
+                cf.player[2][row] = b[3];
+                cf.player[3][row] = b[2];
+            } else {
+                cf.player[2][row] = b[2];
+                cf.player[3][row] = b[3];
+            }
+
+        }
+        if (isMissileMode()) {
+            const p0 = reversedBytes[(cf.player[0][row] << 2) & 0xff] | reversedBytes[cf.missile[0][row]];
+            const p1 = reversedBytes[(cf.player[1][row] << 2) & 0xff] | reversedBytes[cf.missile[1][row]];
+            const m0 = reversed2bits[cf.player[0][row] >> 6];
+            const m1 = reversed2bits[cf.player[1][row] >> 6];
+            const p2 = reversedBytes[(cf.player[2][row] << 2) & 0xff] | reversedBytes[cf.missile[2][row]];
+            const p3 = reversedBytes[(cf.player[3][row] << 2) & 0xff] | reversedBytes[cf.missile[3][row]];
+            const m2 = reversed2bits[cf.player[2][row] >> 6];
+            const m3 = reversed2bits[cf.player[3][row] >> 6];
+
+            if (options.spriteGap01 > 0) {
+                cf.player[0][row] = p1;
+                cf.player[1][row] = p0;
+                cf.missile[0][row] = m1;
+                cf.missile[1][row] = m0;
+            } else {
+                cf.player[0][row] = p0;
+                cf.player[1][row] = p1;
+                cf.missile[0][row] = m0;
+                cf.missile[1][row] = m1;
+            }
+
+            if (options.spriteGap23 > 0) {
+                cf.player[2][row] = p3;
+                cf.player[3][row] = p2;
+                cf.missile[2][row] = m3;
+                cf.missile[3][row] = m2;
+            } else {
+                cf.player[2][row] = p2;
+                cf.player[3][row] = p3;
+                cf.missile[2][row] = m2;
+                cf.missile[3][row] = m3;
+            }
         }
     }
+
+    if (options.spriteGap01 > 0) {
+        const c = workspace.frames[workspace.selectedFrame].colors[0];
+        workspace.frames[workspace.selectedFrame].colors[0] = workspace.frames[workspace.selectedFrame].colors[1];
+        workspace.frames[workspace.selectedFrame].colors[1] = c;
+    }
+
+    if (options.spriteGap23 > 0) {
+        const c = workspace.frames[workspace.selectedFrame].colors[2];
+        workspace.frames[workspace.selectedFrame].colors[2] = workspace.frames[workspace.selectedFrame].colors[3];
+        workspace.frames[workspace.selectedFrame].colors[3] = c;
+    }
+
+    if (isPlayer23Mode() && (options.pairGap > 0)) {
+        let p = cf.player[0]
+        cf.player[0] = cf.player[2];
+        cf.player[2] = p;
+        p = cf.player[1]
+        cf.player[1] = cf.player[3];
+        cf.player[3] = p;
+        if (isMissileMode()) {
+            let m = cf.missile[0]
+            cf.missile[0] = cf.missile[2];
+            cf.missile[2] = m;
+            m = cf.missile[1]
+            cf.missile[1] = cf.missile[3];
+            cf.missile[3] = m;
+        }
+
+        let c = workspace.frames[workspace.selectedFrame].colors[0];
+        workspace.frames[workspace.selectedFrame].colors[0] = workspace.frames[workspace.selectedFrame].colors[2];
+        workspace.frames[workspace.selectedFrame].colors[2] = c;
+        c = workspace.frames[workspace.selectedFrame].colors[1];
+        workspace.frames[workspace.selectedFrame].colors[1] = workspace.frames[workspace.selectedFrame].colors[3];
+        workspace.frames[workspace.selectedFrame].colors[3] = c;
+
+    }
+
+    updateColors();
     drawEditor();
     storeWorkspace();
     return true;
 }
 
 const flipVFrame = () => {
-    if (player) { return false };
+    if (animationOn) { return false };
     let first = 0;
     let last = options.spriteHeight - 1;
-    while (first<last) {
-        const last0 = workspace.frames[workspace.selectedFrame].data[0][last];
-        const last1 = workspace.frames[workspace.selectedFrame].data[1][last];
-        workspace.frames[workspace.selectedFrame].data[0][last] = workspace.frames[workspace.selectedFrame].data[0][first];
-        workspace.frames[workspace.selectedFrame].data[1][last] = workspace.frames[workspace.selectedFrame].data[1][first];
-        workspace.frames[workspace.selectedFrame].data[0][first] = last0;
-        workspace.frames[workspace.selectedFrame].data[1][first] = last1;
+    while (first < last) {
+        for (p = 0; p < playerCount(); p++) {
+            let last0 = workspace.frames[workspace.selectedFrame].player[p][last];
+            workspace.frames[workspace.selectedFrame].player[p][last] = workspace.frames[workspace.selectedFrame].player[p][first];
+            workspace.frames[workspace.selectedFrame].player[p][first] = last0;
+
+            last0 = workspace.frames[workspace.selectedFrame].missile[p][last];
+            workspace.frames[workspace.selectedFrame].missile[p][last] = workspace.frames[workspace.selectedFrame].missile[p][first];
+            workspace.frames[workspace.selectedFrame].missile[p][first] = last0;
+        }
+
         last--;
         first++;
     }
@@ -1217,75 +1518,127 @@ const flipVFrame = () => {
     return true;
 }
 
-const moveFrameLeft = () => {
-    if (player) { return false };
-    for (let row=0;row<options.spriteHeight;row++){
-        const b0 = (workspace.frames[workspace.selectedFrame].data[0][row] << 1) & 0xff;
-        const b1 = (workspace.frames[workspace.selectedFrame].data[1][row] << 1) & 0xff;
-        workspace.frames[workspace.selectedFrame].data[0][row] = b0;
-        workspace.frames[workspace.selectedFrame].data[1][row] = b1;
+const moveColor = (c, source, target) => {
+    if (c==0) { return 0 }
+    let [mp0, mp1, mm0, mm1, mp2, mp3, mm2, mm3] = getMasks(source);
+    const s0 = mp0|mm0;
+    const s1 = mp1|mm1;
+    const s2 = mp2|mm2;
+    const s3 = mp3|mm3;
+    [mp0, mp1, mm0, mm1, mp2, mp3, mm2, mm3] = getMasks(target);
+    const t0 = mp0|mm0;
+    const t1 = mp1|mm1;
+    const t2 = mp2|mm2;
+    const t3 = mp3|mm3;
+    let cout = c;
+
+    if (((s1 && !t1) || (s0 && !t0)) && (t2 || t3) && !(c&4)) {
+        cout = c | 4;
     }
+    if (((s3 && !t3) || (s2 && !t2)) && (t0 || t1) && (c&4)) {
+        cout = c - 4;
+    }
+    c = cout;
+    if (((s2 && !t2) || (s0 && !t0)) && (t1 || t3) && !(c&2)) {
+        cout = c | 2;
+    }
+    c = cout;
+    if (((s3 && !t3) || (s1 && !t1)) && (t0 || t2) && !(c&1)) {
+        cout = c | 1;
+    }
+    
+    return cout;
+}
+
+const moveFrame = dir => {
+    if (animationOn) { return false };
+    const prevOrState = options.ORDrawsOutside;
+    options.ORDrawsOutside = 1;
+    const sframeNum = workspace.frames.length;
+    workspace.frames[sframeNum] = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
+    clearFrame();
+    for (let row = 0; row < options.spriteHeight; row++) {
+        for(let col = 0; col < editorWindow.columns; col++) {
+            let target = col + dir;
+            let clear = false;
+            if (target<0) {
+                if (!options.wrapEditor) {clear = true}
+                target = editorWindow.columns-1
+            };
+            if (target==editorWindow.columns) {
+                if (!options.wrapEditor) {clear = true}
+                target = 0;
+            };
+            setColorOn(target,row,clear?0:moveColor(getColorOn(sframeNum,col,row), col, target));
+        }
+    }
+    workspace.frames.pop();
     drawEditor();
     storeWorkspace();
+    options.ORDrawsOutside = prevOrState;
     return true;
+}
+
+const moveFrameLeft = () => {
+    return moveFrame(-1);
 }
 
 const moveFrameRight = () => {
-    if (player) { return false };
-    for (let row=0;row<options.spriteHeight;row++){
-        const b0 = (workspace.frames[workspace.selectedFrame].data[0][row] >> 1) & 0xff;
-        const b1 = (workspace.frames[workspace.selectedFrame].data[1][row] >> 1) & 0xff;
-        workspace.frames[workspace.selectedFrame].data[0][row] = b0;
-        workspace.frames[workspace.selectedFrame].data[1][row] = b1;
-    }
-    drawEditor();
-    storeWorkspace();
-    return true;
+    return moveFrame(1)
 }
 
 const moveFrameUp = () => {
-    if (player) { return false };
-    workspace.frames[workspace.selectedFrame].data[0].length = options.spriteHeight;
-    workspace.frames[workspace.selectedFrame].data[1].length = options.spriteHeight;
-    const b0 = workspace.frames[workspace.selectedFrame].data[0].shift();
-    const b1 = workspace.frames[workspace.selectedFrame].data[1].shift();
-    workspace.frames[workspace.selectedFrame].data[0].push(options.wrapEditor?b0:0);
-    workspace.frames[workspace.selectedFrame].data[1].push(options.wrapEditor?b1:0);
+    if (animationOn) { return false };
+    for (p = 0; p < playerCount(); p++) {
+        workspace.frames[workspace.selectedFrame].player[p].length = options.spriteHeight;
+        let b0 = workspace.frames[workspace.selectedFrame].player[p].shift();
+        workspace.frames[workspace.selectedFrame].player[p].push(options.wrapEditor ? b0 : 0);
+
+        workspace.frames[workspace.selectedFrame].missile[p].length = options.spriteHeight;
+        b0 = workspace.frames[workspace.selectedFrame].missile[p].shift();
+        workspace.frames[workspace.selectedFrame].missile[p].push(options.wrapEditor ? b0 : 0);
+    }
     drawEditor();
     storeWorkspace();
     return true;
 }
 
 const moveFrameDown = () => {
-    if (player) { return false };
-    workspace.frames[workspace.selectedFrame].data[0].length = options.spriteHeight;
-    workspace.frames[workspace.selectedFrame].data[1].length = options.spriteHeight;
-    const b0 = workspace.frames[workspace.selectedFrame].data[0].pop();
-    const b1 = workspace.frames[workspace.selectedFrame].data[1].pop();
-    workspace.frames[workspace.selectedFrame].data[0].unshift(options.wrapEditor?b0:0);
-    workspace.frames[workspace.selectedFrame].data[1].unshift(options.wrapEditor?b1:0);
+    if (animationOn) { return false };
+    for (p = 0; p < playerCount(); p++) {
+        workspace.frames[workspace.selectedFrame].player[p].length = options.spriteHeight;
+        workspace.frames[workspace.selectedFrame].missile[p].length = options.spriteHeight;
+        let b0 = workspace.frames[workspace.selectedFrame].player[p].pop();
+        workspace.frames[workspace.selectedFrame].player[p].unshift(options.wrapEditor ? b0 : 0);
+        b0 = workspace.frames[workspace.selectedFrame].missile[p].pop();
+        workspace.frames[workspace.selectedFrame].missile[p].unshift(options.wrapEditor ? b0 : 0);
+    }
     drawEditor();
     storeWorkspace();
     return true;
 }
 
 const heightDown = () => {
-    if (player) { return false };
-    const s0 = workspace.frames[workspace.selectedFrame].data[0]
-    const s1 = workspace.frames[workspace.selectedFrame].data[1]
-    workspace.frames[workspace.selectedFrame].data[0] = _.filter(s0,(v,k)=>(k%2==0));
-    workspace.frames[workspace.selectedFrame].data[1] = _.filter(s1,(v,k)=>(k%2==0));
+    if (animationOn) { return false };
+    for (p = 0; p < playerCount(); p++) {
+        let s0 = workspace.frames[workspace.selectedFrame].player[p]
+        workspace.frames[workspace.selectedFrame].player[p] = _.filter(s0, (v, k) => (k % 2 == 0));
+        s0 = workspace.frames[workspace.selectedFrame].missile[p]
+        workspace.frames[workspace.selectedFrame].missile[p] = _.filter(s0, (v, k) => (k % 2 == 0));
+    }
     drawEditor();
     storeWorkspace();
     return true;
 }
 
 const heightUp = () => {
-    if (player) { return false };
-    const s0 = workspace.frames[workspace.selectedFrame].data[0]
-    const s1 = workspace.frames[workspace.selectedFrame].data[1]
-    workspace.frames[workspace.selectedFrame].data[0] = _.flatMap(s0,v=>[v,v]);
-    workspace.frames[workspace.selectedFrame].data[1] = _.flatMap(s1,v=>[v,v]);
+    if (animationOn) { return false };
+    for (p = 0; p < playerCount(); p++) {
+        let s0 = workspace.frames[workspace.selectedFrame].player[p]
+        workspace.frames[workspace.selectedFrame].player[p] = _.flatMap(s0, v => [v, v]);
+        s0 = workspace.frames[workspace.selectedFrame].missile[p]
+        workspace.frames[workspace.selectedFrame].missile[p] = _.flatMap(s0, v => [v, v]);
+    }
     drawEditor();
     storeWorkspace();
     return true;
@@ -1300,120 +1653,129 @@ const keyPressed = e => {               // always working
                 e.preventDefault();
                 toggleExport();
             };
-        break;    
+            break;
+
     }
-    if ($('.dialog:visible').length==0) { // editor only
+    if ($('.dialog:visible').length == 0) { // editor only
         switch (e.code) {
+            case 'Minus':
+                zoomOut();
+                updateScreen();
+                break;
+            case 'Equal':
+                zoomIn();
+                updateScreen();
+                break;
             case 'Digit1':
-                    colorClicked(1);
+                colorClicked(1);
                 break;
             case 'Digit2':
-                    colorClicked(2);
-            break;
+                colorClicked(2);
+                break;
             case 'Digit3':
-                    colorClicked(3);
-            break;
+                colorClicked(3);
+                break;
             case 'Digit4':
             case 'Digit0':
             case 'Backquote':
-                    colorClicked(0);
-            break;
+                colorClicked(0);
+                break;
             case 'Space':
-                if (player) {
+                if (animationOn) {
                     stopPlayer();
                 } else {
                     startPlayer();
                 }
-            break;
-            case 'ArrowRight': 
-                if (!player) {
+                break;
+            case 'ArrowRight':
+                if (!animationOn) {
                     jumpToNextFrame();
                 }
-            break;
-            case 'ArrowLeft': 
-                if (!player) {
+                break;
+            case 'ArrowLeft':
+                if (!animationOn) {
                     jumpToPrevFrame();
                 }
-            break;
+                break;
             case 'Home':
                 workspace.selectedFrame = 0;
                 updateScreen()
-                break;        
+                break;
             case 'End':
-                workspace.selectedFrame = workspace.frames.length-1;
+                workspace.selectedFrame = workspace.frames.length - 1;
                 updateScreen();
-                break;        
+                break;
             case 'BracketLeft':
                 copyColors();
-            break;              
+                break;
             case 'BracketRight':
                 if (saveUndo('paste colors', pasteColors)()) {
                     updateScreen();
                 };
-            break;              
+                break;
             case 'Delete':
                 if (saveUndo('delete frame', delFrame)()) {
                     updateScreen();
                 };
-            break;    
+                break;
             case 'Insert':
                 if (saveUndo('add frame', addFrame)()) {
                     updateScreen();
                 };
-            break;                
+                break;
             case 'KeyZ':
                 if (e.ctrlKey) {
                     undo()
                 };
-            break;         
+                break;
             case 'KeyY':
                 if (e.ctrlKey) {
                     redo()
                 };
-            break;         
+                break;
             case 'KeyS':
                 if (e.ctrlKey) {
                     e.preventDefault();
                     saveFile();
                 };
-            break;         
+                break;
             case 'KeyO':
                 if (e.ctrlKey) {
                     e.preventDefault();
                     $("#fdialog0").trigger('click');
                 };
-            break;        
-   
+                break;
+
             case 'KeyC':
                 if (e.ctrlKey) {
                     copyFrame();
                 }
-            break;                             
+                break;
             case 'KeyV':
                 if (e.ctrlKey) {
                     saveUndo('paste frame', pasteFrame)();
                 }
-            break;                             
+                break;
             default:
                 break;
         }
-   
+
     } else {  /// dialogs
         switch (e.code) {
             case 'Escape':
                 closeAllDialogs();
-            break;
+                break;
             case 'Enter':
                 if ($('#options_dialog').is(':visible')) {
                     saveOptions();
                 }
-            break;
+                break;
 
             default:
                 break;
         }
-        }
-    console.log(e.code);
+    }
+    //console.log(e.code);
 }
 
 
@@ -1425,7 +1787,7 @@ $(document).ready(function () {
     const app = gui(options, dropFile);
     refreshOptions();
     $('title').append(` v.${options.version}`);
-    
+
     app.addMenuFileOpen('Load', openFile, 'appmenu', 'Loads Display List binary file', '.spr,.apl');
     app.addMenuItem('Save', saveFile, 'appmenu', 'Saves Display List as a binary file');
     app.addMenuItem('Export', toggleExport, 'appmenu', 'Exports Display List to various formats');
@@ -1437,11 +1799,10 @@ $(document).ready(function () {
     app.addSeparator('appmenu');
     app.addMenuItem('Help', toggleHelp, 'appmenu', 'Shows Help');
     app.addSeparator('appmenu');
-    const ver = $('<div/>').attr('id','ver').html(`SprEd v.${options.version}`);
+    const ver = $('<div/>').attr('id', 'ver').html(`SprEd v.${options.version}`);
     $('#appmenu').append(ver);
-    const bh = $('<div/>').attr('id','bathub').on('mousedown',()=>{window.location.href='https://bocianu.gitlab.io/bathub/'});
+    const bh = $('<div/>').attr('id', 'bathub').on('mousedown', () => { window.location.href = 'https://bocianu.gitlab.io/bathub/' });
     $('#appmenu').append(bh);
-
 
     app.addMenuItem('Clear', saveUndo('clear frame', clearFrame), 'framemenu', 'Clears current frame');
     app.addMenuItem('Copy', copyFrame, 'framemenu', 'Copies from current frame');
@@ -1470,26 +1831,25 @@ $(document).ready(function () {
     app.addSeparator('timemenu');
     app.addMenuItem('Delete All', deleteAll, 'timemenu', 'Clears and deletes all frames');
 
-    $('.colorbox').bind('mousedown',(e)=> {
+    $('.colorbox').bind('mousedown', (e) => {
         colorClicked(Number(_.last(e.target.id)));
     })
 
-    for (let c=0;c<3;c++) {
+    for (let c of [0, 1, 2, 5, 6]) {
         const picker = $("<div/>");
-        picker.attr('id',`picker${c}`)
-        .addClass('picker')
-        .bind('mousedown',pickerClicked);
+        picker.attr('id', `picker${c}`)
+            .addClass('picker')
+            .bind('mousedown', pickerClicked);
         $(`#color${c}`).append(picker);
     }
 
-    $("#main").bind('mousedown',()=>{$(".palette").remove()})
+    $("#main").bind('mousedown', () => { $(".palette").remove() })
     document.addEventListener('keydown', keyPressed);
-    $('html').on('dragover',e=>{e.preventDefault()});
+    $('html').on('dragover', e => { e.preventDefault() });
 
     loadWorkspace();
     loadUndos();
     newCanvas();
     updateScreen();
-
 
 });

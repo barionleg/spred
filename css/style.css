@@ -241,6 +241,9 @@ input:disabled {
 
 #main {
   margin-top:10px;
+  overflow: auto;
+  position: relative;
+  min-width: 920px;
 }
 
 #editor_box {
@@ -258,9 +261,13 @@ input:disabled {
 #color_box {
   position: relative;
   float: left;
+  overflow: auto;
+  min-width: 600px;
 }
 
 .colorbox {
+  float: left;
+  clear: both;
   border-radius: 3px;
   position: relative;
   border-style: solid;
@@ -279,6 +286,15 @@ input:disabled {
   color:#000;
   text-shadow: rgb(255, 255, 255, 0.5) 1px 1px 1px;
   cursor: pointer;
+}
+
+.colorboxNarrow {
+  width: 61px;
+  margin-right: 7px;
+}
+
+.follow {
+  clear: none;
 }
 
 .picker {
@@ -311,7 +327,9 @@ input:disabled {
 
 .palette {
   padding: 3px;
-  float:left;
+  position: absolute;
+  left: 140px;
+  top: 0px;
   background-color: #000;
   overflow: auto;
   z-index: 1200;
@@ -336,6 +354,10 @@ input:disabled {
     -moz-box-sizing: border-box;
     -webkit-box-sizing: border-box;
   border: 1px solid red;
+}
+
+#framepreview {
+  clear: left;
 }
 
 .framepreview {
@@ -425,3 +447,4 @@ input:disabled {
   cursor: pointer;
   opacity: 0.7;
 }
+
