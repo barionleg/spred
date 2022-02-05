@@ -18,8 +18,8 @@ const spriteWidthPerMode = [
 const zoomCellSize = [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
 
 const defaultOptions = {
-    version: '0.9.1',
-    storageName: 'SprEdStore091',
+    version: '0.9.2',
+    storageName: 'SprEdStore092',
     undoLevels: 128,
     lineResolution: 1,
     spriteHeight: 16,
@@ -57,6 +57,8 @@ const defaultWorkspace = {
     selectedColor: 1,
     selectedFrame: 0,
     backgroundColor: 0,
+    layer01visible: 1,
+    layer23visible: 1,
     clipBoard: {},
     frames: []
 }
@@ -228,6 +230,14 @@ const getColors = (frame) => {
     ];
 }
 
+const isColorActive = c => {
+    if (!workspace.layer01visible && c>0 && c<4)  { return false };
+    if (!workspace.layer23visible && c>3)  { return false };  
+    if (!isPlayer23Mode() && workspace.selectedColor>3) { return false };
+    return true;
+}
+    
+        
 const updateColors = colors => {
     if (colors == undefined) {
         colors = getColors(workspace.selectedFrame);
@@ -242,11 +252,16 @@ const updateColors = colors => {
     } else {
         $('.p23only').addClass('none');
     }
+    if (!isColorActive(workspace.selectedColor)) {
+        workspace.selectedColor = 0;
+    }
     colorClicked(workspace.selectedColor);
 }
 
 const colorClicked = (c) => {
     if (animationOn) { return false };
+    if (!workspace.layer01visible && c>0 && c<4)  { return false };
+    if (!workspace.layer23visible && c>3)  { return false };
     workspace.selectedColor = c;
     $('.colorbox').removeClass('colorSelected');
     $(`#color${c}`).addClass('colorSelected');
@@ -335,10 +350,13 @@ const getColorOn = (frame, col, row) => {
     c2 = (b2 & mp2) || (bm2 & mm2) ? 5 : 0;
     c3 = (b3 & mp3) || (bm3 & mm3) ? 6 : 0;
     c23 = c2 | c3;
-    let c = c01;
-    if (isPlayer23Mode()) {
-        if (c == 0) { c = c23 } // ***************** p01 has higher priority
+    let c = 0;
+    if (isPlayer23Mode() && workspace.layer23visible) {
+        if (c == 0) { c = c23 } 
     }
+    if (workspace.layer01visible) {  // ***************** p01 has higher priority
+        c = c01?c01:c;
+    };
     return c
 }
 
@@ -366,11 +384,16 @@ const setColorOn = (col, row, color) => {
         currentFrame.missile[3][row] &= (~mm3 & 0xff)
     }
     if (color == 0) {
-        clearPixel01();
-        clearPixel23();
+        if (workspace.layer23visible) { 
+            clearPixel23() 
+            c23 = 0;
+        };
+        if (workspace.layer01visible) { 
+            clearPixel01() 
+            c01 = 0;
+
+        };
         c = 0;
-        c01 = 0;
-        c23 = 0;
     }
     if ((mp0 || mm0) && color == 1) {
         clearPixel01();
@@ -492,6 +515,35 @@ const pickerClicked = (e) => {
     const c = Number(_.last(e.target.id));
     showPalette(c);
     //console.log(c);
+}
+
+const updateLayers = () => {
+    $('.layer').removeClass('layer_hidden');
+    if (isPlayer23Mode()) {
+        $('.layer').addClass('layer_default')
+        if (!workspace.layer01visible) {$('.p01only').addClass('layer_hidden')}
+        if (!workspace.layer23visible) {$('.p23only').addClass('layer_hidden')}
+        $('.layer_switch').removeClass('none');
+    } else {
+        $('.layer').removeClass('layer_default');
+        $('.layer_switch').addClass('none');
+        workspace.layer01visible = 1;
+        workspace.layer23visible = 1;
+    }
+}
+
+const layerSwitchClicked = e => {
+    const c = Number(_.last(e.target.id));
+    if (c==1) {
+        workspace.layer01visible = workspace.layer01visible?0:1;
+        workspace.layer23visible = workspace.layer01visible?workspace.layer23visible:1;
+    }
+    if (c==3) {
+        workspace.layer23visible = workspace.layer23visible?0:1;
+        workspace.layer01visible = workspace.layer23visible?workspace.layer01visible:1;
+    }
+    updateLayers();
+    updateScreen();
 }
 
 // *********************************** EDITOR OPERATIONS
@@ -727,6 +779,7 @@ const updateScreen = () => {
     drawTimeline();
     drawEditor();
     updateColors();
+    updateLayers();
 }
 
 const frameboxClicked = e => {
@@ -1943,6 +1996,7 @@ $(document).ready(function () {
             .bind('mousedown', pickerClicked);
         $(`#color${c}`).append(picker);
     }
+    $('.layer_switch').bind('mousedown', layerSwitchClicked);
 
     $("#main").bind('mousedown', () => { $(".palette").remove() })
     document.addEventListener('keydown', keyPressed);
