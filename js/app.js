@@ -26,7 +26,7 @@ const defaultOptions = {
     spriteGap01: 0,
     spriteGap23: 0,
     pairGap: 8,
-    markActiveRegion: 0,
+    markActiveRegion: 1,
     showGrid: 1,
     cellSize: 5,
     wrapEditor: 1,
@@ -243,7 +243,6 @@ const updateColors = colors => {
         $('.p23only').addClass('none');
     }
     colorClicked(workspace.selectedColor);
-    
 }
 
 const colorClicked = (c) => {
@@ -252,9 +251,10 @@ const colorClicked = (c) => {
     $('.colorbox').removeClass('colorSelected');
     $(`#color${c}`).addClass('colorSelected');
     storeWorkspace();
+    removeMarker();
     if (options.markActiveRegion) {
         showMarker(workspace.selectedColor);
-    }
+    } 
 }
 
 const getColorRGB = (frame, c) => {
