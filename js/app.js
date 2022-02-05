@@ -18,14 +18,15 @@ const spriteWidthPerMode = [
 const zoomCellSize = [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
 
 const defaultOptions = {
-    version: '0.9.0',
-    storageName: 'SprEdStore090',
+    version: '0.9.1',
+    storageName: 'SprEdStore091',
     undoLevels: 128,
     lineResolution: 1,
     spriteHeight: 16,
     spriteGap01: 0,
     spriteGap23: 0,
     pairGap: 8,
+    markActiveRegion: 0,
     showGrid: 1,
     cellSize: 5,
     wrapEditor: 1,
@@ -242,6 +243,7 @@ const updateColors = colors => {
         $('.p23only').addClass('none');
     }
     colorClicked(workspace.selectedColor);
+    
 }
 
 const colorClicked = (c) => {
@@ -250,6 +252,9 @@ const colorClicked = (c) => {
     $('.colorbox').removeClass('colorSelected');
     $(`#color${c}`).addClass('colorSelected');
     storeWorkspace();
+    if (options.markActiveRegion) {
+        showMarker(workspace.selectedColor);
+    }
 }
 
 const getColorRGB = (frame, c) => {
@@ -556,6 +561,72 @@ const onMouseOut = (e) => {
 
 const getWidthMultiplier = () => options.squarePixel ? 1 : 1.2;
 
+const removeMarker = () => {
+    $('.marker').remove();
+}
+
+const getMarkerPosition = color => {
+    let width = spriteWidthPerMode[options.mergeMode];
+    let cell = null;
+    switch (color) {
+        case 1:
+            cell = 0;
+            break;
+        case 2:
+            cell = options.spriteGap01;
+            break;
+        case 3:
+            if (options.ORDrawsOutside) {
+                width += options.spriteGap01;
+                cell = 0;
+            } else {
+                width -= options.spriteGap01;
+                cell = options.spriteGap01;
+            }
+            break;
+        case 5:
+            cell = options.pairGap;
+            break;
+        case 6:
+            cell = options.pairGap + options.spriteGap23;
+            break;
+        case 7:
+            if (options.ORDrawsOutside) {
+                width += options.spriteGap23;
+                cell = options.pairGap;;
+            } else {
+                width -= options.spriteGap23;
+                cell = options.pairGap + options.spriteGap23;
+            }
+            break;
+        default:
+            break;
+    }
+    return [cell, width];
+}
+
+const drawMarker = (cell,width) => {
+    if ((width==0) || (cell>=editorWindow.columns)) {
+        return;
+    }
+    $('<div/>').addClass('marker')
+    .css('width',editorWindow.cxoffset * width - 1)
+    .css('height',editorWindow.sheight)
+    .css('left',$('#editor_canvas').position().left + editorWindow.cxoffset * cell)
+    .css('top',$('#editor_canvas').position().top)
+    .appendTo("#main");
+}
+
+const showMarker = color => {
+    removeMarker();
+    if (_.indexOf([1,2,3,5,6,7], color)!=-1) {
+        const [cell, width] = getMarkerPosition(color);
+
+        drawMarker(0,cell);
+        drawMarker(cell + width, editorWindow.columns - width - cell);
+    }
+}
+
 const newCanvas = () => {
     editorWindow.columns01 = spriteWidthPerMode[options.mergeMode] + options.spriteGap01;
     editorWindow.columns23 = spriteWidthPerMode[options.mergeMode] + options.spriteGap23;
@@ -734,6 +805,14 @@ const valIntInput = (inputId) => {
     };
     idiv.val(uint);
     return true;
+}
+
+const toggleOpt = name => {
+    options[name] = options[name]?0:1;
+    refreshOptions();
+    updateOptions();
+    newCanvas();
+    updateScreen();
 }
 
 const clampOption = (inputId, min, max) => {
@@ -1065,7 +1144,8 @@ const saveFile = () => {
 const openFile = function (event) {
     var input = event.target;
     var file = input.files[0];
-    dropFile(file)
+    dropFile(file);
+    $("#fdialog0").blur();
 };
 
 const parseBinary = (binData) => {
@@ -1654,7 +1734,20 @@ const keyPressed = e => {               // always working
                 toggleExport();
             };
             break;
-
+        case 'KeyO':
+            if (!e.ctrlKey) {
+                toggleOpt('ORDrawsOutside');
+            }
+            break;
+        case 'KeyM':
+            toggleOpt('markActiveRegion');
+            break;
+        case 'KeyW':
+            toggleOpt('wrapEditor');
+            break;
+        case 'KeyG':
+            toggleOpt('showGrid');
+            break;
     }
     if ($('.dialog:visible').length == 0) { // editor only
         switch (e.code) {
@@ -1676,6 +1769,14 @@ const keyPressed = e => {               // always working
                 colorClicked(3);
                 break;
             case 'Digit4':
+                colorClicked(5);
+                break;
+            case 'Digit5':
+                colorClicked(6);
+            break;
+            case 'Digit6':
+                colorClicked(7);
+                break;
             case 'Digit0':
             case 'Backquote':
                 colorClicked(0);
@@ -1745,7 +1846,6 @@ const keyPressed = e => {               // always working
                     $("#fdialog0").trigger('click');
                 };
                 break;
-
             case 'KeyC':
                 if (e.ctrlKey) {
                     copyFrame();
@@ -1756,6 +1856,7 @@ const keyPressed = e => {               // always working
                     saveUndo('paste frame', pasteFrame)();
                 }
                 break;
+
             default:
                 break;
         }
@@ -1851,5 +1952,6 @@ $(document).ready(function () {
     loadUndos();
     newCanvas();
     updateScreen();
+
 
 });

@@ -242,6 +242,7 @@ input:disabled {
 #main {
   margin-top:10px;
   overflow: auto;
+  overflow: visible;
   position: relative;
   min-width: 920px;
 }
@@ -253,9 +254,12 @@ input:disabled {
   margin-right: 15px;
 }
 
+
+
 #editor_canvas {  
   position: relative;
   background-color: #000;
+  z-index: 450;
 }
 
 #color_box {
@@ -448,3 +452,15 @@ input:disabled {
   opacity: 0.7;
 }
 
+.marker {
+  background-color: rgba(180, 180, 180, 0.2);
+  position: absolute;
+  z-index: 500;
+  pointer-events: none;
+  
+}
+
+.shortcut {
+  font-weight: 900;
+  color: rgb(77, 19, 19);
+}
