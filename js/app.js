@@ -2102,6 +2102,7 @@ const libraryLoad = item => {
     storeOptions();
     workspace = _.cloneDeep(toLoad.spriteData);
     storeWorkspace();
+    stopPlayer();
     newCanvas();
     library.authorName = toLoad.authorName?toLoad.authorName:'';
     library.spriteName = toLoad.spriteName?toLoad.spriteName:'';
