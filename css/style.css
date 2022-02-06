@@ -249,7 +249,7 @@ input:disabled {
   overflow: auto;
   overflow: visible;
   position: relative;
-  min-width: 920px;
+  min-width: 1200px;
 }
 
 #editor_box {
@@ -270,8 +270,8 @@ input:disabled {
 #color_box {
   position: relative;
   float: left;
-  overflow: auto;
-  min-width: 600px;
+  overflow: visible;
+  min-width: 300px;
 }
 
 .colorbox {
@@ -332,6 +332,7 @@ input:disabled {
   border-top-color:#444;
   border-left-color: #444;
   text-indent: 0.9em;
+  box-shadow: 0 0 4px #fff;
 }
 
 .palette {
@@ -347,7 +348,7 @@ input:disabled {
 
 .colorCell {
   width: 16px;
-  height: 8px;
+  height: 12px;
   float: left;
   margin: 0 0 1px 1px;
   cursor: pointer;

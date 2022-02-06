@@ -38,7 +38,7 @@ const defaultOptions = {
     lastTemplate: 0,
     startingLine: 10000,
     lineStep: 10,
-    ORDrawsOutside: 0,
+    ORDrawsOutside: 1,
     squarePixel: 1,
     mergeMode: MODE_P0P1
 }
@@ -52,13 +52,13 @@ let playerInterval = null;
 let undos = [];
 let redos = [];
 let beforeDrawingState = null;
+let layer01visible = 1;
+let layer23visible = 1;
 
 const defaultWorkspace = {
     selectedColor: 1,
     selectedFrame: 0,
     backgroundColor: 0,
-    layer01visible: 1,
-    layer23visible: 1,
     clipBoard: {},
     frames: []
 }
@@ -109,6 +109,13 @@ const isPlayer23Mode = () => {
 const playerCount = () => {
     return isPlayer23Mode() ? 4 : 2;
 }
+
+const isPlayerActive = p => {
+    if ((p < 2) && !layer01visible) { return false };
+    if ((p > 1) && !layer23visible) { return false };
+    return true;
+}
+
 
 function decimalToHex(d, padding) {
     let hex = Number(d).toString(16);
@@ -231,13 +238,13 @@ const getColors = (frame) => {
 }
 
 const isColorActive = c => {
-    if (!workspace.layer01visible && c>0 && c<4)  { return false };
-    if (!workspace.layer23visible && c>3)  { return false };  
-    if (!isPlayer23Mode() && workspace.selectedColor>3) { return false };
+    if (!layer01visible && c > 0 && c < 4) { return false };
+    if (!layer23visible && c > 3) { return false };
+    if (!isPlayer23Mode() && workspace.selectedColor > 3) { return false };
     return true;
 }
-    
-        
+
+
 const updateColors = colors => {
     if (colors == undefined) {
         colors = getColors(workspace.selectedFrame);
@@ -258,10 +265,23 @@ const updateColors = colors => {
     colorClicked(workspace.selectedColor);
 }
 
+const fakeNewColor = (color, cval) => {
+    const fakeColors = getColors(workspace.selectedFrame);
+    fakeColors[color] = cval;
+    fakeColors[3] = fakeColors[1] | fakeColors[2];
+    fakeColors[7] = fakeColors[5] | fakeColors[6];
+    for (let i = 0; i < 8; i++) {
+        $(`#color${i}`)
+            .css('background-color', getByteRGB(fakeColors[i]))
+            .attr('title', `${fakeColors[i]} ($${decimalToHex(fakeColors[i]).toUpperCase()})`)
+    }
+}
+
+
 const colorClicked = (c) => {
     if (animationOn) { return false };
-    if (!workspace.layer01visible && c>0 && c<4)  { return false };
-    if (!workspace.layer23visible && c>3)  { return false };
+    if (!layer01visible && c > 0 && c < 4) { return false };
+    if (!layer23visible && c > 3) { return false };
     workspace.selectedColor = c;
     $('.colorbox').removeClass('colorSelected');
     $(`#color${c}`).addClass('colorSelected');
@@ -269,7 +289,7 @@ const colorClicked = (c) => {
     removeMarker();
     if (options.markActiveRegion) {
         showMarker(workspace.selectedColor);
-    } 
+    }
 }
 
 const getColorRGB = (frame, c) => {
@@ -351,11 +371,11 @@ const getColorOn = (frame, col, row) => {
     c3 = (b3 & mp3) || (bm3 & mm3) ? 6 : 0;
     c23 = c2 | c3;
     let c = 0;
-    if (isPlayer23Mode() && workspace.layer23visible) {
-        if (c == 0) { c = c23 } 
+    if (isPlayer23Mode() && layer23visible) {
+        if (c == 0) { c = c23 }
     }
-    if (workspace.layer01visible) {  // ***************** p01 has higher priority
-        c = c01?c01:c;
+    if (layer01visible) {  // ***************** p01 has higher priority
+        c = c01 ? c01 : c;
     };
     return c
 }
@@ -384,12 +404,12 @@ const setColorOn = (col, row, color) => {
         currentFrame.missile[3][row] &= (~mm3 & 0xff)
     }
     if (color == 0) {
-        if (workspace.layer23visible) { 
-            clearPixel23() 
+        if (layer23visible) {
+            clearPixel23()
             c23 = 0;
         };
-        if (workspace.layer01visible) { 
-            clearPixel01() 
+        if (layer01visible) {
+            clearPixel01()
             c01 = 0;
 
         };
@@ -439,11 +459,13 @@ const setColorOn = (col, row, color) => {
             c23 = (mp2 || mm2 ? 5 : 0) | (mp3 || mm3 ? 6 : 0);
         }
     }
-    c = c01 ? c01 : c;
-
-    if (isPlayer23Mode()) {
-        c = (c == 0) ? c23 : c;
+    if (isPlayer23Mode() && layer23visible) {
+        c = c23;
     }
+    if (layer01visible) {
+        c = c01;
+    }
+
     drawBlock(col, row, getColorRGB(workspace.selectedFrame, c));
 }
 
@@ -469,21 +491,33 @@ const setNewColor = (c, cval) => {
     storeWorkspace();
 }
 
+const closePalette = () => {
+    if ($(".palette").length) {
+        $(".palette").remove();
+        updateColors();
+    }
+}
+
 const colorCellClicked = e => {
+    if (animationOn) { return false };
+    const cval = Number(_.last(_.split(e.target.id, '_')));
+    const c = Number(_.last($(e.target).parent()[0].id));
+    setNewColor(c, cval);
+    updateScreen();
+    closePalette();
+}
+
+const colorCellOver = e => {
     if (animationOn) { return false };
     cval = Number(_.last(_.split(e.target.id, '_')));
     c = Number(_.last($(e.target).parent()[0].id));
-    setNewColor(c, cval);
-    updateScreen();
-    $(".palette").remove();
-
+    fakeNewColor(c, cval);
 }
 
 const showPalette = c => {
     if ($(`#pal${c}`).length) {
-        $(".palette").remove();
+        closePalette();
     } else {
-        $(".palette").remove();
         const pal = $("<div/>")
             .attr('id', `pal${c}`)
             .addClass('palette');
@@ -500,6 +534,7 @@ const showPalette = c => {
                 .attr('title', `${cval} ($${decimalToHex(cval).toUpperCase()})`)
                 .css('background-color', rgb)
                 .bind('mousedown', colorCellClicked)
+                .bind('mouseenter ', colorCellOver)
             if (cval % 16 == 0) cell.addClass('palette_firstinrow');
 
             pal.append(cell);
@@ -521,26 +556,26 @@ const updateLayers = () => {
     $('.layer').removeClass('layer_hidden');
     if (isPlayer23Mode()) {
         $('.layer').addClass('layer_default')
-        if (!workspace.layer01visible) {$('.p01only').addClass('layer_hidden')}
-        if (!workspace.layer23visible) {$('.p23only').addClass('layer_hidden')}
+        if (!layer01visible) { $('.p01only').addClass('layer_hidden') }
+        if (!layer23visible) { $('.p23only').addClass('layer_hidden') }
         $('.layer_switch').removeClass('none');
     } else {
         $('.layer').removeClass('layer_default');
         $('.layer_switch').addClass('none');
-        workspace.layer01visible = 1;
-        workspace.layer23visible = 1;
+        layer01visible = 1;
+        layer23visible = 1;
     }
 }
 
 const layerSwitchClicked = e => {
     const c = Number(_.last(e.target.id));
-    if (c==1) {
-        workspace.layer01visible = workspace.layer01visible?0:1;
-        workspace.layer23visible = workspace.layer01visible?workspace.layer23visible:1;
+    if (c == 1) {
+        layer01visible = layer01visible ? 0 : 1;
+        layer23visible = layer01visible ? layer23visible : 1;
     }
-    if (c==3) {
-        workspace.layer23visible = workspace.layer23visible?0:1;
-        workspace.layer01visible = workspace.layer23visible?workspace.layer01visible:1;
+    if (c == 3) {
+        layer23visible = layer23visible ? 0 : 1;
+        layer01visible = layer23visible ? layer01visible : 1;
     }
     updateLayers();
     updateScreen();
@@ -657,24 +692,24 @@ const getMarkerPosition = color => {
     return [cell, width];
 }
 
-const drawMarker = (cell,width) => {
-    if ((width==0) || (cell>=editorWindow.columns)) {
+const drawMarker = (cell, width) => {
+    if ((width == 0) || (cell >= editorWindow.columns)) {
         return;
     }
     $('<div/>').addClass('marker')
-    .css('width',editorWindow.cxoffset * width - 1)
-    .css('height',editorWindow.sheight)
-    .css('left',$('#editor_canvas').position().left + editorWindow.cxoffset * cell)
-    .css('top',$('#editor_canvas').position().top)
-    .appendTo("#main");
+        .css('width', editorWindow.cxoffset * width - 1)
+        .css('height', editorWindow.sheight)
+        .css('left', $('#editor_canvas').position().left + editorWindow.cxoffset * cell)
+        .css('top', $('#editor_canvas').position().top)
+        .appendTo("#main");
 }
 
 const showMarker = color => {
     removeMarker();
-    if (_.indexOf([1,2,3,5,6,7], color)!=-1) {
+    if (_.indexOf([1, 2, 3, 5, 6, 7], color) != -1) {
         const [cell, width] = getMarkerPosition(color);
 
-        drawMarker(0,cell);
+        drawMarker(0, cell);
         drawMarker(cell + width, editorWindow.columns - width - cell);
     }
 }
@@ -821,6 +856,7 @@ const templateChange = () => {
 
 const toggleDiv = (divId) => {
     closeAllDialogs();
+    closePalette();
     const isVisible = $(divId).is(':visible');
     if (isVisible) {
         $(divId).slideUp();
@@ -861,7 +897,7 @@ const valIntInput = (inputId) => {
 }
 
 const toggleOpt = name => {
-    options[name] = options[name]?0:1;
+    options[name] = options[name] ? 0 : 1;
     refreshOptions();
     updateOptions();
     newCanvas();
@@ -1113,7 +1149,7 @@ const parseTemplate = (template) => {
             tframe = f;
             frame.player[s].length = options.spriteHeight;
             frame.missile[s].length = options.spriteHeight;
-            _.each(frame.player[s], (p,row) => {
+            _.each(frame.player[s], (p, row) => {
                 if (isMissileOnLeft()) {
                     merged[row] = (p << 2) | frame.missile[s][row];
                 } else {
@@ -1132,12 +1168,12 @@ const parseTemplate = (template) => {
             const merged = new Array(options.spriteHeight).fill(0);
             lines = '';
             tframe = f;
-            for (let p=0; p<playerCount(); p++) {
+            for (let p = 0; p < playerCount(); p++) {
                 _.each(frame.missile[p], (m, row) => {
                     if (isMissileOnLeft()) {
-                        merged[row] |= (frame.player[p][row] >> 6) << (p*2);
+                        merged[row] |= (frame.player[p][row] >> 6) << (p * 2);
                     } else {
-                        merged[row] |= m << (p*2);
+                        merged[row] |= m << (p * 2);
                     }
                 });
             };
@@ -1147,14 +1183,14 @@ const parseTemplate = (template) => {
         pushBlock(missiles, template.missiles);
     }
 
-    for (let p=0; p<playerCount(); p++) { pushSpriteColors(p) };
+    for (let p = 0; p < playerCount(); p++) { pushSpriteColors(p) };
 
-    for (let p=0; p<playerCount(); p++) { pushSpriteData(p) };
+    for (let p = 0; p < playerCount(); p++) { pushSpriteData(p) };
 
     if (isMissileMode()) { pushMissileData() };
 
-    const parsed = isPlayer23Mode()?
-        parseTemplateVars(`${template.block.prefix23||template.block.prefix}${templateLines}${template.block.postfix}`):
+    const parsed = isPlayer23Mode() ?
+        parseTemplateVars(`${template.block.prefix23 || template.block.prefix}${templateLines}${template.block.postfix}`) :
         parseTemplateVars(`${template.block.prefix}${templateLines}${template.block.postfix}`);
     return parsed;
 }
@@ -1277,7 +1313,7 @@ const parseBinary = (binData) => {
         options.pairGap = binData[binPtr++];
         binPtr += 2; // unused bytes
         let frameCount = binData[binPtr++];
-        
+
         if (frameCount != 0) {                       // P0-P1 old format - preserved for compatibility
             options.spriteHeight = binData[binPtr++];
             options.spriteGap01 = binData[binPtr++];
@@ -1397,8 +1433,10 @@ const clearFrame = () => {
     if (animationOn) { return false };
     for (let r = 0; r < options.spriteHeight; r++) {
         for (p = 0; p < 4; p++) {
-            workspace.frames[workspace.selectedFrame].player[p][r] = 0;
-            workspace.frames[workspace.selectedFrame].missile[p][r] = 0;
+            if (isPlayerActive(p)) {
+                workspace.frames[workspace.selectedFrame].player[p][r] = 0;
+                workspace.frames[workspace.selectedFrame].missile[p][r] = 0;
+            }
         }
     }
     drawEditor();
@@ -1494,13 +1532,23 @@ const zoomOut = () => {
 
 const copyColors = () => {
     if (animationOn || options.commonPalette) { return false };
-    workspace.clipBoard.colors = _.cloneDeep(workspace.frames[workspace.selectedFrame].colors);
+    workspace.clipBoard.colors = [];
+    for (k in workspace.clipBoard.frame.player) {
+        if (isPlayerActive(k)) {
+            workspace.clipBoard.frame.colors[k] = workspace.frames[workspace.selectedFrame].colors[k];
+        }
+    };
+    
 }
 
 const pasteColors = () => {
     if (animationOn || options.commonPalette) { return false };
     if (workspace.clipBoard.colors) {
-        workspace.frames[workspace.selectedFrame].colors = _.cloneDeep(workspace.clipBoard.colors);
+        for (k in workspace.clipBoard.frame.player) {
+            if (isPlayerActive(k)) {
+                workspace.frames[workspace.selectedFrame].colors[k] = workspace.clipBoard.frame.colors[k];
+            }
+        };
     }
     drawEditor();
     updateColors();
@@ -1510,13 +1558,26 @@ const pasteColors = () => {
 
 const copyFrame = () => {
     if (animationOn) { return false };
-    workspace.clipBoard.frame = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
+    workspace.clipBoard.frame = getEmptyFrame();
+    for (k in workspace.clipBoard.frame.player) {
+        if (isPlayerActive(k) ) {
+            workspace.clipBoard.frame.player[k] = _.cloneDeep(workspace.frames[workspace.selectedFrame].player[k]);
+            workspace.clipBoard.frame.missile[k] = _.cloneDeep(workspace.frames[workspace.selectedFrame].missile[k]);
+            workspace.clipBoard.frame.colors[k] = workspace.frames[workspace.selectedFrame].colors[k];
+        }
+    };
 }
 
 const pasteFrame = () => {
     if (animationOn) { return false };
     if (workspace.clipBoard.frame) {
-        workspace.frames[workspace.selectedFrame] = _.cloneDeep(workspace.clipBoard.frame);
+        for (k in workspace.clipBoard.frame.player) {
+            if (isPlayerActive(k) && workspace.clipBoard.frame.player[k]) {
+                workspace.frames[workspace.selectedFrame].player[k] = _.cloneDeep(workspace.clipBoard.frame.player[k]);
+                workspace.frames[workspace.selectedFrame].missile[k] = _.cloneDeep(workspace.clipBoard.frame.missile[k]);
+                workspace.frames[workspace.selectedFrame].colors[k] = workspace.clipBoard.frame.colors[k];
+            }
+        };
     }
     drawEditor();
     storeWorkspace();
@@ -1597,7 +1658,7 @@ const flipHFrame = () => {
         workspace.frames[workspace.selectedFrame].colors[3] = c;
     }
 
-    if (isPlayer23Mode() && (options.pairGap > 0)) {
+    if (isPlayer23Mode() && (options.pairGap > 0) && layer01visible && layer23visible) {
         let p = cf.player[0]
         cf.player[0] = cf.player[2];
         cf.player[2] = p;
@@ -1634,13 +1695,15 @@ const flipVFrame = () => {
     let last = options.spriteHeight - 1;
     while (first < last) {
         for (p = 0; p < playerCount(); p++) {
-            let last0 = workspace.frames[workspace.selectedFrame].player[p][last];
-            workspace.frames[workspace.selectedFrame].player[p][last] = workspace.frames[workspace.selectedFrame].player[p][first];
-            workspace.frames[workspace.selectedFrame].player[p][first] = last0;
+            if (isPlayerActive(p)) {
+                let last0 = workspace.frames[workspace.selectedFrame].player[p][last];
+                workspace.frames[workspace.selectedFrame].player[p][last] = workspace.frames[workspace.selectedFrame].player[p][first];
+                workspace.frames[workspace.selectedFrame].player[p][first] = last0;
 
-            last0 = workspace.frames[workspace.selectedFrame].missile[p][last];
-            workspace.frames[workspace.selectedFrame].missile[p][last] = workspace.frames[workspace.selectedFrame].missile[p][first];
-            workspace.frames[workspace.selectedFrame].missile[p][first] = last0;
+                last0 = workspace.frames[workspace.selectedFrame].missile[p][last];
+                workspace.frames[workspace.selectedFrame].missile[p][last] = workspace.frames[workspace.selectedFrame].missile[p][first];
+                workspace.frames[workspace.selectedFrame].missile[p][first] = last0;
+            }
         }
 
         last--;
@@ -1652,34 +1715,34 @@ const flipVFrame = () => {
 }
 
 const moveColor = (c, source, target) => {
-    if (c==0) { return 0 }
+    if (c == 0) { return 0 }
     let [mp0, mp1, mm0, mm1, mp2, mp3, mm2, mm3] = getMasks(source);
-    const s0 = mp0|mm0;
-    const s1 = mp1|mm1;
-    const s2 = mp2|mm2;
-    const s3 = mp3|mm3;
+    const s0 = mp0 | mm0;
+    const s1 = mp1 | mm1;
+    const s2 = mp2 | mm2;
+    const s3 = mp3 | mm3;
     [mp0, mp1, mm0, mm1, mp2, mp3, mm2, mm3] = getMasks(target);
-    const t0 = mp0|mm0;
-    const t1 = mp1|mm1;
-    const t2 = mp2|mm2;
-    const t3 = mp3|mm3;
+    const t0 = mp0 | mm0;
+    const t1 = mp1 | mm1;
+    const t2 = mp2 | mm2;
+    const t3 = mp3 | mm3;
     let cout = c;
 
-    if (((s1 && !t1) || (s0 && !t0)) && (t2 || t3) && !(c&4)) {
+    if (((s1 && !t1) || (s0 && !t0)) && (t2 || t3) && !(c & 4)) {
         cout = c | 4;
     }
-    if (((s3 && !t3) || (s2 && !t2)) && (t0 || t1) && (c&4)) {
+    if (((s3 && !t3) || (s2 && !t2)) && (t0 || t1) && (c & 4)) {
         cout = c - 4;
     }
     c = cout;
-    if (((s2 && !t2) || (s0 && !t0)) && (t1 || t3) && !(c&2)) {
+    if (((s2 && !t2) || (s0 && !t0)) && (t1 || t3) && !(c & 2)) {
         cout = c | 2;
     }
     c = cout;
-    if (((s3 && !t3) || (s1 && !t1)) && (t0 || t2) && !(c&1)) {
+    if (((s3 && !t3) || (s1 && !t1)) && (t0 || t2) && !(c & 1)) {
         cout = c | 1;
     }
-    
+
     return cout;
 }
 
@@ -1691,18 +1754,18 @@ const moveFrame = dir => {
     workspace.frames[sframeNum] = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
     clearFrame();
     for (let row = 0; row < options.spriteHeight; row++) {
-        for(let col = 0; col < editorWindow.columns; col++) {
+        for (let col = 0; col < editorWindow.columns; col++) {
             let target = col + dir;
             let clear = false;
-            if (target<0) {
-                if (!options.wrapEditor) {clear = true}
-                target = editorWindow.columns-1
+            if (target < 0) {
+                if (!options.wrapEditor) { clear = true }
+                target = editorWindow.columns - 1
             };
-            if (target==editorWindow.columns) {
-                if (!options.wrapEditor) {clear = true}
+            if (target == editorWindow.columns) {
+                if (!options.wrapEditor) { clear = true }
                 target = 0;
             };
-            setColorOn(target,row,clear?0:moveColor(getColorOn(sframeNum,col,row), col, target));
+            setColorOn(target, row, clear ? 0 : moveColor(getColorOn(sframeNum, col, row), col, target));
         }
     }
     workspace.frames.pop();
@@ -1723,13 +1786,15 @@ const moveFrameRight = () => {
 const moveFrameUp = () => {
     if (animationOn) { return false };
     for (p = 0; p < playerCount(); p++) {
-        workspace.frames[workspace.selectedFrame].player[p].length = options.spriteHeight;
-        let b0 = workspace.frames[workspace.selectedFrame].player[p].shift();
-        workspace.frames[workspace.selectedFrame].player[p].push(options.wrapEditor ? b0 : 0);
+        if (isPlayerActive(p)) {
+            workspace.frames[workspace.selectedFrame].player[p].length = options.spriteHeight;
+            let b0 = workspace.frames[workspace.selectedFrame].player[p].shift();
+            workspace.frames[workspace.selectedFrame].player[p].push(options.wrapEditor ? b0 : 0);
 
-        workspace.frames[workspace.selectedFrame].missile[p].length = options.spriteHeight;
-        b0 = workspace.frames[workspace.selectedFrame].missile[p].shift();
-        workspace.frames[workspace.selectedFrame].missile[p].push(options.wrapEditor ? b0 : 0);
+            workspace.frames[workspace.selectedFrame].missile[p].length = options.spriteHeight;
+            b0 = workspace.frames[workspace.selectedFrame].missile[p].shift();
+            workspace.frames[workspace.selectedFrame].missile[p].push(options.wrapEditor ? b0 : 0);
+        }
     }
     drawEditor();
     storeWorkspace();
@@ -1739,12 +1804,14 @@ const moveFrameUp = () => {
 const moveFrameDown = () => {
     if (animationOn) { return false };
     for (p = 0; p < playerCount(); p++) {
-        workspace.frames[workspace.selectedFrame].player[p].length = options.spriteHeight;
-        workspace.frames[workspace.selectedFrame].missile[p].length = options.spriteHeight;
-        let b0 = workspace.frames[workspace.selectedFrame].player[p].pop();
-        workspace.frames[workspace.selectedFrame].player[p].unshift(options.wrapEditor ? b0 : 0);
-        b0 = workspace.frames[workspace.selectedFrame].missile[p].pop();
-        workspace.frames[workspace.selectedFrame].missile[p].unshift(options.wrapEditor ? b0 : 0);
+        if (isPlayerActive(p)) {
+            workspace.frames[workspace.selectedFrame].player[p].length = options.spriteHeight;
+            workspace.frames[workspace.selectedFrame].missile[p].length = options.spriteHeight;
+            let b0 = workspace.frames[workspace.selectedFrame].player[p].pop();
+            workspace.frames[workspace.selectedFrame].player[p].unshift(options.wrapEditor ? b0 : 0);
+            b0 = workspace.frames[workspace.selectedFrame].missile[p].pop();
+            workspace.frames[workspace.selectedFrame].missile[p].unshift(options.wrapEditor ? b0 : 0);
+        }
     }
     drawEditor();
     storeWorkspace();
@@ -1754,10 +1821,12 @@ const moveFrameDown = () => {
 const heightDown = () => {
     if (animationOn) { return false };
     for (p = 0; p < playerCount(); p++) {
-        let s0 = workspace.frames[workspace.selectedFrame].player[p]
-        workspace.frames[workspace.selectedFrame].player[p] = _.filter(s0, (v, k) => (k % 2 == 0));
-        s0 = workspace.frames[workspace.selectedFrame].missile[p]
-        workspace.frames[workspace.selectedFrame].missile[p] = _.filter(s0, (v, k) => (k % 2 == 0));
+        if (isPlayerActive(p)) {
+            let s0 = workspace.frames[workspace.selectedFrame].player[p]
+            workspace.frames[workspace.selectedFrame].player[p] = _.filter(s0, (v, k) => (k % 2 == 0));
+            s0 = workspace.frames[workspace.selectedFrame].missile[p]
+            workspace.frames[workspace.selectedFrame].missile[p] = _.filter(s0, (v, k) => (k % 2 == 0));
+        }
     }
     drawEditor();
     storeWorkspace();
@@ -1767,10 +1836,12 @@ const heightDown = () => {
 const heightUp = () => {
     if (animationOn) { return false };
     for (p = 0; p < playerCount(); p++) {
-        let s0 = workspace.frames[workspace.selectedFrame].player[p]
-        workspace.frames[workspace.selectedFrame].player[p] = _.flatMap(s0, v => [v, v]);
-        s0 = workspace.frames[workspace.selectedFrame].missile[p]
-        workspace.frames[workspace.selectedFrame].missile[p] = _.flatMap(s0, v => [v, v]);
+        if (isPlayerActive(p)) {
+            let s0 = workspace.frames[workspace.selectedFrame].player[p]
+            workspace.frames[workspace.selectedFrame].player[p] = _.flatMap(s0, v => [v, v]);
+            s0 = workspace.frames[workspace.selectedFrame].missile[p]
+            workspace.frames[workspace.selectedFrame].missile[p] = _.flatMap(s0, v => [v, v]);
+        }
     }
     drawEditor();
     storeWorkspace();
@@ -1826,7 +1897,7 @@ const keyPressed = e => {               // always working
                 break;
             case 'Digit5':
                 colorClicked(6);
-            break;
+                break;
             case 'Digit6':
                 colorClicked(7);
                 break;
@@ -1842,11 +1913,13 @@ const keyPressed = e => {               // always working
                 }
                 break;
             case 'ArrowRight':
+                e.preventDefault();
                 if (!animationOn) {
                     jumpToNextFrame();
                 }
                 break;
             case 'ArrowLeft':
+                e.preventDefault();
                 if (!animationOn) {
                     jumpToPrevFrame();
                 }
@@ -1998,7 +2071,7 @@ $(document).ready(function () {
     }
     $('.layer_switch').bind('mousedown', layerSwitchClicked);
 
-    $("#main").bind('mousedown', () => { $(".palette").remove() })
+    $("#main").bind('mousedown', closePalette)
     document.addEventListener('keydown', keyPressed);
     $('html').on('dragover', e => { e.preventDefault() });
 
