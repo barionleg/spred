@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>SprEd - Atari Sprite Editor</title>
@@ -13,31 +14,60 @@
 <body>
   <div id='app'>
     <ul id='appmenu' class='menulist'></ul>
-    <ul id='framemenu' class='menulist'></ul>
-  </div>
 
-  <div id='main'>
-    <div id='editor_box'></div>
-    <div id='color_box'>
-      <div class='colorbox' id='color0'>BACKGROUND</div>
-      <div class='p01only layer'><div id='layer01' class='layer_switch'>👁</div>
-        <div class='colorbox colorboxNarrow' id='color1'>C0</div>
-        <div class='colorbox colorboxNarrow follow' id='color2'>C1</div>
-        <div class='colorbox' id='color3'>C0 OR C1 </div>
+    <div id='edit_tab' class='tab'>
+      <ul id='framemenu' class='menulist'></ul>
+      <div id='main'>
+        <div id='editor_box'></div>
+        <div id='color_box'>
+          <div class='colorbox' id='color0'>BACKGROUND</div>
+          <div class='p01only layer'>
+            <div id='layer01' class='layer_switch'>👁</div>
+            <div class='colorbox colorboxNarrow' id='color1'>C0</div>
+            <div class='colorbox colorboxNarrow follow' id='color2'>C1</div>
+            <div class='colorbox' id='color3'>C0 OR C1 </div>
+          </div>
+          <div class='p23only layer'>
+            <div id='layer23' class='layer_switch'>👁</div>
+            <div class='colorbox colorboxNarrow' id='color5'>C2</div>
+            <div class='colorbox colorboxNarrow follow' id='color6'>C3</div>
+            <div class='colorbox' id='color7'>C2 OR C3</div>
+          </div>
+          <div id='framepreview'></div>
+        </div>
       </div>
-      <div class='p23only layer'><div id='layer23' class='layer_switch'>👁</div>
-        <div class='colorbox colorboxNarrow' id='color5'>C2</div>
-        <div class='colorbox colorboxNarrow follow' id='color6'>C3</div>
-        <div class='colorbox' id='color7'>C2 OR C3</div>
+
+      <div id='timeline'>
+        <div id='framelist'></div>
+        <ul id='timemenu' class='menulist'></ul>
       </div>
-      <div id='framepreview'></div>
     </div>
+
+    <div id='lib_tab' class='tab none'>
+      <ul id='libmenu' class='menulist'></ul>
+      <div id='upload_form'>
+        <fieldset>
+          <label class='dialog_label'>Sprite name:</label>
+          <input type='text' id='lib_spriteName_s' class='dialog_text_input'>
+        </fieldset>
+        <fieldset>
+          <label class='dialog_label'>Author:</label>
+          <input type='text' id='lib_authorName_s' class='dialog_text_input'>
+        </fieldset>
+        <fieldset>
+          <label class='dialog_label'>Description:</label>
+          <textarea id='lib_description_s' class='dialog_text_input'></textarea>
+        </fieldset>
+        <div class="menuitem" title="Upload" id="upload">Upload to Library</div>
+        <hr>
+        This library is public, so be aware of that!
+      </div>
+      <div id='lib_spinner' class="lds-ellipsis none"><div></div><div></div><div></div><div></div></div>
+      <ul id='library_list'></ul>
+    </div>
+
   </div>
 
-  <div id='timeline'>
-    <div id='framelist'></div>
-    <ul id='timemenu' class='menulist'></ul>
-  </div>
 
   <div id='help_dialog' class='dialog'>
     <div class='dialog_title'>Help</div>
@@ -55,7 +85,7 @@
             <p><b>6</b> : Select 2 OR 3 color </p>
             <p><b>[</b> : Copy sprite colors</p>
             <p><b>]</b> : Paste sprite colors</p>
-            <p><b>+/-</b> : Editor zoom in / out</p>            
+            <p><b>+/-</b> : Editor zoom in / out</p>
             <p><b>O</b> : Toggle OR behaviour </p>
             <p><b>W</b> : Toggle editor wrapping </p>
             <p><b>M</b> : Toggle active region marker </p>
@@ -86,179 +116,185 @@
         <input type="hidden" name="no_recurring" value="0">
         <input type="hidden" name="item_name" value="bocianu.atari.pl">
         <input type="hidden" name="currency_code" value="PLN">
-        <input type="image" id='ppal' src="img/paypal-donate-button.png" border="0" name="submit" title="PayPal - The safer, easier way to pay online!" alt="Donate with PayPal button" class="donate">
-        </form>
-      <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="bocianu" data-color="#FFDD00" data-emoji=""  data-font="Arial" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff" ></script>   
+        <input type="image" id='ppal' src="img/paypal-donate-button.png" border="0" name="submit"
+          title="PayPal - The safer, easier way to pay online!" alt="Donate with PayPal button" class="donate">
+      </form>
+      <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js"
+        data-name="bmc-button" data-slug="bocianu" data-color="#FFDD00" data-emoji="" data-font="Arial"
+        data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000"
+        data-coffee-color="#ffffff"></script>
 
-          This software is free.<br> Source code <a href='https://gitlab.com/bocianu/spred'>available</a>. <br>
-          Coded for you by <a href='https://bocianu.atari.pl'>bocianu</a>.<br>
-          <br>
-            If you like my app, please consider a donation.<br>
-          <hr>
+      This software is free.<br> Source code <a href='https://gitlab.com/bocianu/spred'>available</a>. <br>
+      Coded for you by <a href='https://bocianu.atari.pl'>bocianu</a>.<br>
+      <br>
+      If you like my app, please consider a donation.<br>
+      <hr>
 
       <div class='menuitem clear_left' id='close_help'>Close</div>
     </div>
-</div>
+  </div>
 
 
   <div id='export_dialog' class='dialog'>
-      <div class='dialog_title'>Export</div>
-      <div class='dialog_content'>
-        <div class='dialog_blocks'>
-          <div class='dialog_block'>
-            <fieldset>
-              <label class='dialog_label'>Template:</label>
-              <select id='opt_lastTemplate_i' class='dialog_text_input'>
-              </select>
-            </fieldset>
-            <textarea id='export_frame'></textarea>
-            <hr>
-          </div>
-
+    <div class='dialog_title'>Export</div>
+    <div class='dialog_content'>
+      <div class='dialog_blocks'>
+        <div class='dialog_block'>
+          <fieldset>
+            <label class='dialog_label'>Template:</label>
+            <select id='opt_lastTemplate_i' class='dialog_text_input'>
+            </select>
+          </fieldset>
+          <textarea id='export_frame'></textarea>
+          <hr>
         </div>
-        <div class='menuitem clear_left' id='close_export'>Close</div>
+
       </div>
+      <div class='menuitem clear_left' id='close_export'>Close</div>
+    </div>
   </div>
-  
+
 
   <div id='options_dialog' class='dialog'>
-      <div class='dialog_title'>Options</div>
-      <div class='dialog_content'>
+    <div class='dialog_title'>Options</div>
+    <div class='dialog_content'>
 
-        <div class='dialog_blocks'>
-          <div class='dialog_block'>
-            <h3>Editor Options:</h3>
-            
-            <fieldset>
-              <label class='dialog_label'>Sprite line resolution:</label>
-              <select id='opt_lineResolution_i' class='dialog_text_input'>
-                <option value='1'>2 lines</option>
-                <option value='2'>1 line</option>
-              </select>
-            </fieldset>
+      <div class='dialog_blocks'>
+        <div class='dialog_block'>
+          <h3>Editor Options:</h3>
 
-            <fieldset>
-              <label class='dialog_label checkbox_label'>
-                <input type='checkbox' id='opt_squarePixel_b'/>Square Pixel</label>
-            </fieldset>
+          <fieldset>
+            <label class='dialog_label'>Sprite line resolution:</label>
+            <select id='opt_lineResolution_i' class='dialog_text_input'>
+              <option value='1'>2 lines</option>
+              <option value='2'>1 line</option>
+            </select>
+          </fieldset>
 
-
-            <fieldset>
-              <label class='dialog_label'>Colour palette:</label>
-              <select id='opt_palette_s' class='dialog_text_input'>
-                <option value='PAL'>PAL</option>
-                <option value='NTSC'>NTSC</option>
-              </select>
-            </fieldset>
-
-            <fieldset>
-              <label class='dialog_label checkbox_label'>
-                <input type='checkbox' id='opt_commonPalette_b'/>Common palette for all frames</label>
-            </fieldset>
-
-            <fieldset>
-              <label class='dialog_label'>Editor Zoom:</label>
-              <input type='text' id='opt_cellSize_i' class='dialog_text_input input_narrow'>
-            </fieldset>
-
-            <fieldset>
-              <label class='dialog_label'>Animaton Delay [frames]:</label>
-              <input type='text' id='opt_animationSpeed_i' class='dialog_text_input input_narrow'>
-            </fieldset>
-
-            <fieldset>
-              <label class='dialog_label checkbox_label'>
-                <input type='checkbox' id='opt_ORDrawsOutside_b'/><span class='shortcut'>O</span>R color draws on both</label>
-            </fieldset>
-
-            <fieldset>
-              <label class='dialog_label checkbox_label'>
-                <input type='checkbox' id='opt_wrapEditor_b'/><span class='shortcut'>W</span>rap Editor Window</label>
-            </fieldset>
-
-            <fieldset>
-              <label class='dialog_label checkbox_label'>
-                <input type='checkbox' id='opt_markActiveRegion_b'/><span class='shortcut'>M</span>ark Active Region</label>
-            </fieldset>
-
-            <fieldset>
-              <label class='dialog_label checkbox_label'>
-                <input type='checkbox' id='opt_showGrid_b'/>Show <span class='shortcut'>G</span>rid</label>
-            </fieldset>
-          </div>
-
-          <div class='dialog_block'>
-            <h3>Sprite Options:</h3>
-            <fieldset>
-              <label class='dialog_label'>Sprite Merge Mode:</label>
-              <select id='opt_mergeMode_i' class='dialog_text_input'>
-                <option value='0'>P0+P1</option>
-                <option value='1'>PM0+PM1</option>
-                <option value='3'>MP0+MP1</option>
-                <option value='4'>P0+P1 P2+P3</option>
-                <option value='5'>PM0+PM1 PM2+PM3</option>
-                <option value='7'>MP0+MP1 MP2+MP3</option>
-              </select>
-            </fieldset>
-
-            <fieldset>
-              <label class='dialog_label'>Sprite Height:</label>
-              <input type='text' id='opt_spriteHeight_i' class='dialog_text_input input_narrow'>
-            </fieldset>
-
-            <fieldset>
-              <label class='dialog_label'>Sprite 0-1 Gap:</label>
-              <input type='text' id='opt_spriteGap01_i' class='dialog_text_input input_narrow'>
-            </fieldset>
-
-            <fieldset>
-              <label class='dialog_label'>Sprite 2-3 Gap:</label>
-              <input type='text' id='opt_spriteGap23_i' class='dialog_text_input input_narrow'>
-            </fieldset>
-
-            <fieldset>
-              <label class='dialog_label'>Pair Gap:</label>
-              <input type='text' id='opt_pairGap_i' class='dialog_text_input input_narrow'>
-            </fieldset>
-
-            <hr>
+          <fieldset>
+            <label class='dialog_label checkbox_label'>
+              <input type='checkbox' id='opt_squarePixel_b' />Square Pixel</label>
+          </fieldset>
 
 
-            <h3>Import/Export Options:</h3>
-            <fieldset>
-              <label class='dialog_label'>Show bytes as:</label>
-              <select id='opt_bytesExport_s' class='dialog_text_input'>
-                  <option value='HEX'>HEX</option>
-                  <option value='DEC'>DEC</option>
-                  <option value='BIN'>BIN</option>
-              </select>
-            </fieldset>
+          <fieldset>
+            <label class='dialog_label'>Colour palette:</label>
+            <select id='opt_palette_s' class='dialog_text_input'>
+              <option value='PAL'>PAL</option>
+              <option value='NTSC'>NTSC</option>
+            </select>
+          </fieldset>
 
-            <fieldset>
-              <label class='dialog_label'>Bytes per line:</label>
-              <input type='text' id='opt_bytesPerLine_i' class='dialog_text_input input_narrow'>
-            </fieldset>
+          <fieldset>
+            <label class='dialog_label checkbox_label'>
+              <input type='checkbox' id='opt_commonPalette_b' />Common palette for all frames</label>
+          </fieldset>
 
-            <fieldset>
-              <label class='dialog_label'>Starting Line Number:</label>
-              <input type='text' id='opt_startingLine_i' class='dialog_text_input input_narrow'>
-            </fieldset>
-            <fieldset>
-              <label class='dialog_label'>Step:</label>
-              <input type='text' id='opt_lineStep_i' class='dialog_text_input input_narrow'>
-            </fieldset>
+          <fieldset>
+            <label class='dialog_label'>Editor Zoom:</label>
+            <input type='text' id='opt_cellSize_i' class='dialog_text_input input_narrow'>
+          </fieldset>
 
-          </div>
+          <fieldset>
+            <label class='dialog_label'>Animaton Delay [frames]:</label>
+            <input type='text' id='opt_animationSpeed_i' class='dialog_text_input input_narrow'>
+          </fieldset>
+
+          <fieldset>
+            <label class='dialog_label checkbox_label'>
+              <input type='checkbox' id='opt_ORDrawsOutside_b' /><span class='shortcut'>O</span>R color draws on
+              both</label>
+          </fieldset>
+
+          <fieldset>
+            <label class='dialog_label checkbox_label'>
+              <input type='checkbox' id='opt_wrapEditor_b' /><span class='shortcut'>W</span>rap Editor Window</label>
+          </fieldset>
+
+          <fieldset>
+            <label class='dialog_label checkbox_label'>
+              <input type='checkbox' id='opt_markActiveRegion_b' /><span class='shortcut'>M</span>ark Active
+              Region</label>
+          </fieldset>
+
+          <fieldset>
+            <label class='dialog_label checkbox_label'>
+              <input type='checkbox' id='opt_showGrid_b' />Show <span class='shortcut'>G</span>rid</label>
+          </fieldset>
         </div>
 
-        <hr>
-        <div class='menuitem clear_left' id='save_options'>&nbsp; &nbsp; OK &nbsp; &nbsp;</div>
+        <div class='dialog_block'>
+          <h3>Sprite Options:</h3>
+          <fieldset>
+            <label class='dialog_label'>Sprite Merge Mode:</label>
+            <select id='opt_mergeMode_i' class='dialog_text_input'>
+              <option value='0'>P0+P1</option>
+              <option value='1'>PM0+PM1</option>
+              <option value='3'>MP0+MP1</option>
+              <option value='4'>P0+P1 P2+P3</option>
+              <option value='5'>PM0+PM1 PM2+PM3</option>
+              <option value='7'>MP0+MP1 MP2+MP3</option>
+            </select>
+          </fieldset>
+
+          <fieldset>
+            <label class='dialog_label'>Sprite Height:</label>
+            <input type='text' id='opt_spriteHeight_i' class='dialog_text_input input_narrow'>
+          </fieldset>
+
+          <fieldset>
+            <label class='dialog_label'>Sprite 0-1 Gap:</label>
+            <input type='text' id='opt_spriteGap01_i' class='dialog_text_input input_narrow'>
+          </fieldset>
+
+          <fieldset>
+            <label class='dialog_label'>Sprite 2-3 Gap:</label>
+            <input type='text' id='opt_spriteGap23_i' class='dialog_text_input input_narrow'>
+          </fieldset>
+
+          <fieldset>
+            <label class='dialog_label'>Pair Gap:</label>
+            <input type='text' id='opt_pairGap_i' class='dialog_text_input input_narrow'>
+          </fieldset>
+
+          <hr>
+
+
+          <h3>Import/Export Options:</h3>
+          <fieldset>
+            <label class='dialog_label'>Show bytes as:</label>
+            <select id='opt_bytesExport_s' class='dialog_text_input'>
+              <option value='HEX'>HEX</option>
+              <option value='DEC'>DEC</option>
+              <option value='BIN'>BIN</option>
+            </select>
+          </fieldset>
+
+          <fieldset>
+            <label class='dialog_label'>Bytes per line:</label>
+            <input type='text' id='opt_bytesPerLine_i' class='dialog_text_input input_narrow'>
+          </fieldset>
+
+          <fieldset>
+            <label class='dialog_label'>Starting Line Number:</label>
+            <input type='text' id='opt_startingLine_i' class='dialog_text_input input_narrow'>
+          </fieldset>
+          <fieldset>
+            <label class='dialog_label'>Step:</label>
+            <input type='text' id='opt_lineStep_i' class='dialog_text_input input_narrow'>
+          </fieldset>
+
+        </div>
       </div>
+
+      <hr>
+      <div class='menuitem clear_left' id='save_options'>&nbsp; &nbsp; OK &nbsp; &nbsp;</div>
+    </div>
   </div>
 
-  <script src='js/exportTemplates.js?v=093' type='text/javascript'></script>
-  <script src='js/gui.js?v=093' type='text/javascript'></script>
-  <script src='js/app.js?v=093' type='text/javascript'></script>
+  <script src='js/exportTemplates.js?v=094' type='text/javascript'></script>
+  <script src='js/gui.js?v=094' type='text/javascript'></script>
+  <script src='js/app.js?v=094' type='text/javascript'></script>
 </body>
 
 </html>

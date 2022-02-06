@@ -108,7 +108,7 @@ pre {
 }
 
 .none {
-  display: none;
+  display: none!important;
 }
 
 .dialog {
@@ -531,4 +531,160 @@ input:disabled {
   color: #666!important;
   opacity: 0.5!important;
   cursor: default;
+}
+
+.active {
+  color: rgb(199, 14, 14)!important;
+}
+
+.lds-ellipsis {
+  display: inline-block;
+  position: relative;
+  width: 80px;
+  height: 20px;
+}
+.lds-ellipsis div {
+  position: absolute;
+  top: 3px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.288);
+  animation-timing-function: cubic-bezier(0, 1, 1, 0);
+}
+.lds-ellipsis div:nth-child(1) {
+  left: 8px;
+  animation: lds-ellipsis1 0.6s infinite;
+}
+.lds-ellipsis div:nth-child(2) {
+  left: 8px;
+  animation: lds-ellipsis2 0.6s infinite;
+}
+.lds-ellipsis div:nth-child(3) {
+  left: 32px;
+  animation: lds-ellipsis2 0.6s infinite;
+}
+.lds-ellipsis div:nth-child(4) {
+  left: 56px;
+  animation: lds-ellipsis3 0.6s infinite;
+}
+@keyframes lds-ellipsis1 {
+  0% {
+    transform: scale(0);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes lds-ellipsis3 {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(0);
+  }
+}
+@keyframes lds-ellipsis2 {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(24px, 0);
+  }
+}
+
+#upload_form {
+  width: 200px;
+  min-height: 200px;
+  background-color: rgb(151, 147, 137);
+  padding: 10px 20px;
+  float: left;
+  margin-right: 20px;
+  border-radius: 5px;
+
+  box-shadow: 0 0 4px #000;
+  border: 2px solid #000;
+  overflow:hidden;
+  font-size:12px;
+  color:#000;
+
+}
+
+#upload_form textarea {
+  height: 6em;
+  width: 90%;
+}
+
+ul#library_list {
+  list-style: none;
+  display: block;
+  overflow: auto;
+  margin-top: 3px;
+}
+
+ul#library_list>li {
+  position: relative;
+  display: block;
+  list-style: none;
+  height: 40px;
+  width: 500px;
+  cursor: pointer;
+  margin-bottom: 4px;
+  background-color: rgb(95, 80, 52);
+  padding: 4px;
+}
+
+.lib {
+  float: left;
+  font-size: 14px;
+}
+
+.lib_name {
+  width:280px;
+  color: antiquewhite;
+  margin-left: 5px;
+}
+
+.lib_framecount {
+  color: rgba(250, 235, 215, 0.507);
+  font-size: 12px;
+}
+
+.lib_date {
+  margin-left:10px;
+  padding-top: 5px;
+}
+
+.lib_author {
+  position: absolute;
+  top:26px;
+  left:300px;
+  color: rgb(147, 151, 122);
+  font-size: 12px;
+}
+
+ul#library_list>li>div>img {
+  image-rendering: pixelated;
+  width: 80px;
+  height: 40px;
+  object-fit: contain;
+  object-position: center right;
+}
+
+.lib_img {
+  float: right !important;;
+  width: 80px;
+  height: 40px;
+}
+
+#lib_error {
+  text-indent: 2em;
+  font-size: 18px;
+  color: rgb(216, 71, 71);
+  font-weight: 900;
+}
+
+.pager>div {
+  float: left;
+  margin-right: 20px;
 }

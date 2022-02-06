@@ -11,6 +11,8 @@ const MODE_P0P1P2P3 = 4;
 const MODE_PM0PM1PM2PM3 = 5;
 const MODE_MP0MP1MP2MP3 = 6;
 
+const LIBRARY_SPR_PER_PAGE = 8;
+
 const spriteWidthPerMode = [
     8, 10, 10, 10, 8, 10, 10, 10
 ];
@@ -18,8 +20,8 @@ const spriteWidthPerMode = [
 const zoomCellSize = [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
 
 const defaultOptions = {
-    version: '0.9.3',
-    storageName: 'SprEdStore092',
+    version: '0.9.4',
+    storageName: 'SprEdStore094',
     undoLevels: 128,
     lineResolution: 1,
     spriteHeight: 16,
@@ -54,6 +56,8 @@ let redos = [];
 let beforeDrawingState = null;
 let layer01visible = 1;
 let layer23visible = 1;
+let libraryOpened = 0;
+let libraryPage = 0;
 
 const defaultWorkspace = {
     selectedColor: 1,
@@ -63,6 +67,15 @@ const defaultWorkspace = {
     frames: []
 }
 
+const defaultLibrary = {
+    uploaderId: '',
+    spriteName: '',
+    authorName: '',
+    description: ''
+}
+
+let library = {};
+let libraryContents = null;
 let workspace = {};
 
 const reversedBytes = [
@@ -460,10 +473,10 @@ const setColorOn = (col, row, color) => {
         }
     }
     if (isPlayer23Mode() && layer23visible) {
-        c = c23?c23:c;
+        c = c23 ? c23 : c;
     }
     if (layer01visible) {
-        c = c01?c01:c;
+        c = c01 ? c01 : c;
     }
 
     drawBlock(col, row, getColorRGB(workspace.selectedFrame, c));
@@ -811,7 +824,7 @@ const drawTimeline = () => {
 }
 
 const updateMenu = () => {
-    $('.pairOnly').toggleClass('inactive',!isPlayer23Mode());
+    $('.pairOnly').toggleClass('inactive', !isPlayer23Mode());
 }
 
 const updateScreen = () => {
@@ -875,6 +888,26 @@ const toggleExport = () => {
     if (toggleDiv('#export_dialog')) {
         refreshOptions();
         exportData();
+    }
+}
+
+const closeLibrary = () => {
+    $("#edit_tab").removeClass('none');
+    $("#lib_tab").addClass('none');
+    libraryOpened = 0;
+    updateLibraryTab();
+    storeLibrary();
+    updateScreen();
+}
+
+const toggleLibrary = () => {
+    if (libraryOpened) {
+      closeLibrary();
+    } else {
+        $("#edit_tab").addClass('none');
+        $("#lib_tab").removeClass('none');
+        libraryOpened = 1;
+        updateLibraryTab();
     }
 }
 
@@ -1014,6 +1047,10 @@ const storeWorkspace = () => {
     localStorage.setItem(`${defaultOptions.storageName}_WS`, JSON.stringify(workspace));
 }
 
+const storeLibrary = () => {
+    localStorage.setItem(`${defaultOptions.storageName}_LIB`, JSON.stringify(library));
+}
+
 const storeUndos = () => {
     localStorage.setItem(`${defaultOptions.storageName}_UNDO`, JSON.stringify(undos));
     localStorage.setItem(`${defaultOptions.storageName}_REDO`, JSON.stringify(redos));
@@ -1043,6 +1080,17 @@ const loadWorkspace = () => {
         workspace = _.assignIn({}, _.clone(defaultWorkspace), JSON.parse(localStorage.getItem(`${defaultOptions.storageName}_WS`)));
     }
 }
+
+const loadLibrary = () => {
+    if (!localStorage.getItem(`${defaultOptions.storageName}_LIB`)) {
+        library = _.assignIn({}, _.clone(defaultLibrary));
+        library.uploaderId = new Date().valueOf();
+        storeLibrary();
+    } else {
+        library = _.assignIn({}, _.clone(defaultLibrary), JSON.parse(localStorage.getItem(`${defaultOptions.storageName}_LIB`)));
+    }
+}
+
 
 // *********************************** EXPORT / LOAD / SAVE
 
@@ -1240,6 +1288,7 @@ const openFile = function (event) {
     var file = input.files[0];
     dropFile(file);
     $("#fdialog0").blur();
+    closeLibrary();
 };
 
 const parseBinary = (binData) => {
@@ -2032,6 +2081,265 @@ const keyPressed = e => {               // always working
     //console.log(e.code);
 }
 
+// ************************************************  Library functions 
+
+const libraryLoad = item => {
+    const optToLoad = [
+        'lineResolution',
+        'spriteHeight',
+        'spriteGap01',
+        'spriteGap23',
+        'pairGap',
+        'animationSpeed',
+        'palette',
+        'mergeMode',
+    ];
+    const toLoad = libraryContents.data[item];
+    for (let opt of optToLoad) {
+        options[opt] = toLoad.spriteOptions[opt];
+        //console.log(opt);
+    }
+    storeOptions();
+    workspace = _.cloneDeep(toLoad.spriteData);
+    storeWorkspace();
+    newCanvas();
+    library.authorName = toLoad.authorName?toLoad.authorName:'';
+    library.spriteName = toLoad.spriteName?toLoad.spriteName:'';
+    library.description = toLoad.description?toLoad.description:'';
+    closeLibrary();
+}
+
+const libraryClick = e => {
+    const itemNum = Number(_.last(_.split(e.currentTarget.id, '_')));
+    //console.log(e);
+    const sprite = libraryContents.data[itemNum];
+    if (confirm(`Do you really want to load a new sprite?`)) {
+        libraryLoad(itemNum);
+    }
+}
+
+const validateUpload = () => {
+    if ($("#lib_spriteName_s").val()=='') {
+        libError('Sprite name must not be empty!');
+        return false;
+    }
+    if ($("#lib_authorName_s").val()=='') {
+        libError('Author must not be empty!');
+        return false;
+    }
+    return true;
+}
+
+const libraryUpload = () => {
+    if (validateUpload()) {
+        updateLibrary();
+        if (confirm('Are you sure you want to upload your project?')) {
+            postData(library);
+        }
+    }
+};
+
+const showLibContents = () => {
+    if (libraryContents) {
+        $('#library_list').empty();
+        _.each(libraryContents.data, (spr, i) => {
+            const li = $("<li/>").attr('id',`lib_${i}`);
+            li.bind('mousedown',libraryClick);
+            const name = $("<div/>").addClass('lib lib_name').html(spr.spriteName).attr('title',spr.description);
+            const frameCount = spr.spriteData.frames.length;
+            const fc = $("<span/>").addClass('lib_framecount').append(` (${frameCount} frame${frameCount==1?'':'s'})`);
+            name.append(fc);
+            const author = $("<div/>").addClass('lib lib_author').html(spr.authorName);
+            const sprdate = new Date(spr.uploadDate);
+            const date = $("<div/>").addClass('lib lib_date').attr('title',spr.uploadDate).html(sprdate.toDateString());
+            const img = $('<img/>').addClass('lib').attr('src', spr.spritePreview);
+            const imgbox = $("<div/>").addClass('lib lib_img').append(img);
+            li.append(imgbox,name,author,date);
+            $('#library_list').append(li);
+        });
+        //console.log(libraryContents.totals)
+        //const last = (LIBRARY_SPR_PER_PAGE * libraryPage) + libraryContents.totals.count;
+        const pages = Math.ceil(libraryContents.totals.total / LIBRARY_SPR_PER_PAGE);
+       
+        const pager = $('<div/>').addClass('pager')
+        
+        const prev = $('<div/>').html('<<')
+        .addClass('menuitem')
+        .toggleClass('none',libraryPage==0)
+        .bind('mousedown', ()=>{swapPage(-1)});
+        const pos = $('<div/>').html(` Page ${libraryPage+1} of ${pages} `);
+        
+        const next = $('<div/>').html('>>')
+        .addClass('menuitem')
+        .toggleClass('none',libraryPage==pages-1)
+        .bind('mousedown', ()=>{swapPage(1)});
+
+        pager.append(prev,pos,next);
+
+        $('#library_list').append(pager);
+
+    }
+}   
+
+const swapPage = dir => {
+    const newPage = libraryPage + dir;
+    const pages = Math.ceil(libraryContents.totals.total / LIBRARY_SPR_PER_PAGE);
+    if ((newPage>-1) && (newPage<pages)) {
+        getLibraryData(newPage);
+    }
+}
+
+const updateLibrary = () => {
+    const libs = _.filter($("textarea, input"), inp => {
+        return _.startsWith($(inp).attr('id'), 'lib_');
+    });
+    const newopts = {};
+    _.each(libs, inp => {
+        const lib_id = $(inp).attr('id');
+        const lib_name = _.split(lib_id, '_');
+        let lib_value = $(`#${lib_id}`).val();
+        const lib_type = lib_name[2];
+        if (lib_type == 's') {
+            newopts[lib_name[1]] = `${lib_value}`;
+        };
+    })
+    _.assignIn(library, newopts);
+    storeLibrary();
+}
+
+const updateLibraryTab = () => {
+    getLibraryData(0);
+    const libs = _.filter($("textarea, input"), inp => {
+        return _.startsWith($(inp).attr('id'), 'lib_');
+    });
+    _.each(libs, inp => {
+        const lib_id = $(inp).attr('id');
+        const lib_name = _.split(lib_id, '_');
+        const lib_type = lib_name[2];
+        const lib_val = library[lib_name[1]];
+        $(`#${lib_id}`).val(lib_val);
+    });
+    
+    $('#libpreview').remove();
+    const preview = getFrameImage(0, 4, 4/options.lineResolution).attr('id','libpreview');
+    $('#upload_form').prepend(preview);
+}
+
+const libError = (msg, col) => {
+    col = col || '#c66';
+    $('#lib_error').empty().html(msg).css('color',col).removeClass('none');
+    setTimeout(()=>{
+        $('#lib_error').addClass('none');
+    },5000);
+}
+
+const getLibraryData = page => {
+    $('#lib_spinner').removeClass('none');
+    const skip = LIBRARY_SPR_PER_PAGE * page;
+
+    var settings = {
+        "async": true,
+        "crossDomain": true,
+        "url": `https://spred-c23d.restdb.io/rest/sprites?totals=true&sort=uploadDate&dir=-1&skip=${skip}&max=${LIBRARY_SPR_PER_PAGE}`,
+        "method": "GET",
+        "headers": {
+        "content-type": "application/json",
+        "x-apikey": "61ffef5b6a79155501021860",
+        "cache-control": "no-cache"
+        }
+    }
+    $.ajax(settings)
+    .done(function (response) {
+        libraryContents = response;
+        libraryPage = page;
+        showLibContents();
+        //libError('List Succesfully Loaded');
+        $('#lib_spinner').addClass('none');
+    })
+    .fail(function (response) {
+        console.log(response);
+        libError('Error loading list from database');
+        $('#lib_spinner').addClass('none');
+    })
+}
+
+const getSpriteByKeys = keys => {
+    //$('#lib_spinner').removeClass('none');
+    //const skip = LIBRARY_SPR_PER_PAGE * page;
+
+    var settings = {
+        "async": false,
+        "crossDomain": true,
+        "url": `https://spred-c23d.restdb.io/rest/sprites?q=${JSON.stringify(keys)}`,
+        "method": "GET",
+        "headers": {
+        "content-type": "application/json",
+        "x-apikey": "61ffef5b6a79155501021860",
+        "cache-control": "no-cache"
+        }
+    }
+    $.ajax(settings)
+    .done(function (response) {
+        libraryContents = response;
+        libraryPage = page;
+        showLibContents();
+        //libError('List Succesfully Loaded');
+        $('#lib_spinner').addClass('none');
+    })
+    .fail(function (response) {
+        console.log(response);
+        libError('Error loading list from database');
+        $('#lib_spinner').addClass('none');
+    })
+}
+
+
+const postData = data => {
+    $('#lib_spinner').removeClass('none');
+    const preview = getFrameImage(0, 2, 2/options.lineResolution);
+    var jsondata = _.assign({
+        "uploaderId": library.uploaderId,
+        "authorName": "",
+        "uploadDate": new Date().toISOString(),
+        "spriteName": "",
+        "description": "",
+        "spriteData": workspace,
+        "spriteOptions": options,
+        "spritePreview": preview[0].toDataURL()
+    }, data);
+    var settings = {
+        "async": true,
+        "crossDomain": true,
+        "url": "https://spred-c23d.restdb.io/rest/sprites",
+        "method": "POST",
+        "headers": {
+            "content-type": "application/json",
+            "x-apikey": "61ffef5b6a79155501021860",
+            "cache-control": "no-cache"
+        },
+        "processData": false,
+        "data": JSON.stringify(jsondata)
+    }
+
+    $.ajax(settings)
+    .done(function (response) {
+        //console.log(response);
+        libError('The file was successfully uploaded','#5b5');
+        getLibraryData(0);
+    })
+    .fail(function (response) {
+
+        if (response.status==400) {
+            console.log(response);
+            libError('A sprite with this name already exists.');
+            $('#lib_spinner').addClass('none');
+            return false;            
+        }
+        libError('Unexpected error during upload.')
+        $('#lib_spinner').addClass('none');
+    });
+}
+
 
 // ************************************************  ON START INIT 
 
@@ -2075,6 +2383,16 @@ $(document).ready(function () {
     app.addSeparator('framemenu');
     app.addMenuItem('⮬⮯', saveUndo('swap pairs', swapPairs), 'framemenu', 'Swap pairs', 'pairOnly');
 
+    app.addSeparator('framemenu');
+    app.addMenuItem('Library', toggleLibrary, 'framemenu', 'Toggle Library', 'libButton');
+
+//    app.addMenuItem('Upload current project', saveUndo('upload', postData), 'libmenu', 'Upload');
+    app.addMenuItem('Reload Library', ()=>{getLibraryData(0)}, 'libmenu', 'Reload Library', 'libButton');
+    app.addSeparator('libmenu');
+    app.addMenuItem('Close Library', toggleLibrary, 'libmenu', 'Toggle Library', 'libButton');
+    const err = $('<div/>').attr('id', 'lib_error');
+    $('#libmenu').append(err);
+
     app.addMenuItem('▶', startPlayer, 'timemenu', 'Starts Animation [Space]');
     app.addMenuItem('⏹︎', stopPlayer, 'timemenu', 'Stops Animation [Space]');
     app.addSeparator('timemenu');
@@ -2099,12 +2417,14 @@ $(document).ready(function () {
         $(`#color${c}`).append(picker);
     }
     $('.layer_switch').bind('mousedown', layerSwitchClicked);
+    $('#upload').bind('mousedown', libraryUpload);
 
     $("#main").bind('mousedown', closePalette)
     document.addEventListener('keydown', keyPressed);
     $('html').on('dragover', e => { e.preventDefault() });
 
     loadWorkspace();
+    loadLibrary();
     loadUndos();
     newCanvas();
     updateScreen();
