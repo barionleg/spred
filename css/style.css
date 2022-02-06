@@ -526,3 +526,9 @@ input:disabled {
   text-align: center; 
   font-weight: 900;
 }
+
+.inactive {
+  color: #666!important;
+  opacity: 0.5!important;
+  cursor: default;
+}

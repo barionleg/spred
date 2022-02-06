@@ -18,7 +18,7 @@ const spriteWidthPerMode = [
 const zoomCellSize = [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
 
 const defaultOptions = {
-    version: '0.9.2',
+    version: '0.9.3',
     storageName: 'SprEdStore092',
     undoLevels: 128,
     lineResolution: 1,
@@ -460,10 +460,10 @@ const setColorOn = (col, row, color) => {
         }
     }
     if (isPlayer23Mode() && layer23visible) {
-        c = c23;
+        c = c23?c23:c;
     }
     if (layer01visible) {
-        c = c01;
+        c = c01?c01:c;
     }
 
     drawBlock(col, row, getColorRGB(workspace.selectedFrame, c));
@@ -810,11 +810,16 @@ const drawTimeline = () => {
     });
 }
 
+const updateMenu = () => {
+    $('.pairOnly').toggleClass('inactive',!isPlayer23Mode());
+}
+
 const updateScreen = () => {
     drawTimeline();
     drawEditor();
     updateColors();
     updateLayers();
+    updateMenu();
 }
 
 const frameboxClicked = e => {
@@ -1538,7 +1543,7 @@ const copyColors = () => {
             workspace.clipBoard.frame.colors[k] = workspace.frames[workspace.selectedFrame].colors[k];
         }
     };
-    
+
 }
 
 const pasteColors = () => {
@@ -1560,7 +1565,7 @@ const copyFrame = () => {
     if (animationOn) { return false };
     workspace.clipBoard.frame = getEmptyFrame();
     for (k in workspace.clipBoard.frame.player) {
-        if (isPlayerActive(k) ) {
+        if (isPlayerActive(k)) {
             workspace.clipBoard.frame.player[k] = _.cloneDeep(workspace.frames[workspace.selectedFrame].player[k]);
             workspace.clipBoard.frame.missile[k] = _.cloneDeep(workspace.frames[workspace.selectedFrame].missile[k]);
             workspace.clipBoard.frame.colors[k] = workspace.frames[workspace.selectedFrame].colors[k];
@@ -1579,9 +1584,31 @@ const pasteFrame = () => {
             }
         };
     }
-    drawEditor();
+    updateScreen();
     storeWorkspace();
     return true;
+}
+
+const swapPairs = () => {
+    if (animationOn) { return false };
+    const cframe = workspace.frames[workspace.selectedFrame];
+    if (isPlayer23Mode()) {
+        for (let p of [0, 1]) {
+            let temp = cframe.player[p];
+            cframe.player[p] = cframe.player[p + 2]
+            cframe.player[p + 2] = temp
+            temp = cframe.missile[p];
+            cframe.missile[p] = cframe.missile[p + 2]
+            cframe.missile[p + 2] = temp
+            temp = cframe.colors[p];
+            cframe.colors[p] = cframe.colors[p + 2]
+            cframe.colors[p + 2] = temp
+        }
+        updateScreen();
+        storeWorkspace();
+        return true;
+    }
+    return false;
 }
 
 const flip8Bits = b => reversedBytes[b];
@@ -2045,6 +2072,8 @@ $(document).ready(function () {
     app.addSeparator('framemenu');
     app.addMenuItem('≡+', saveUndo('double lines', heightUp), 'framemenu', 'Expand by doubling lines');
     app.addMenuItem('≡−', saveUndo('tighten', heightDown), 'framemenu', 'Remove every second line');
+    app.addSeparator('framemenu');
+    app.addMenuItem('⮬⮯', saveUndo('swap pairs', swapPairs), 'framemenu', 'Swap pairs', 'pairOnly');
 
     app.addMenuItem('▶', startPlayer, 'timemenu', 'Starts Animation [Space]');
     app.addMenuItem('⏹︎', stopPlayer, 'timemenu', 'Stops Animation [Space]');
