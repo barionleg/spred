@@ -615,12 +615,19 @@ input:disabled {
   width: 90%;
 }
 
+#listbox {
+  display: block;
+  overflow: auto;
+  float:left 
+}
+
 ul#library_list {
   list-style: none;
   display: block;
   overflow: auto;
   margin-top: 3px;
 }
+
 
 ul#library_list>li {
   position: relative;
@@ -681,7 +688,7 @@ ul#library_list>li>div>img {
   text-indent: 2em;
   font-size: 18px;
   color: rgb(216, 71, 71);
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .pager>div {
