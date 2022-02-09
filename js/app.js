@@ -2209,7 +2209,7 @@ const updateLibrary = () => {
 }
 
 const updateLibraryTab = () => {
-    getLibraryData(0);
+    getLibraryData(libraryPage);
     const libs = _.filter($("textarea, input"), inp => {
         return _.startsWith($(inp).attr('id'), 'lib_');
     });
