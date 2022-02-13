@@ -20,8 +20,8 @@ const spriteWidthPerMode = [
 const zoomCellSize = [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
 
 const defaultOptions = {
-    version: '0.9.4',
-    storageName: 'SprEdStore094',
+    version: '1.0.0',
+    storageName: 'SprEdStore100',
     undoLevels: 128,
     lineResolution: 1,
     spriteHeight: 16,
@@ -42,7 +42,8 @@ const defaultOptions = {
     lineStep: 10,
     ORDrawsOutside: 1,
     squarePixel: 1,
-    mergeMode: MODE_P0P1
+    mergeMode: MODE_P0P1,
+    dliOn: 0
 }
 let options = {};
 const dontSave = ['version', 'storageName'];
@@ -63,6 +64,7 @@ const defaultWorkspace = {
     selectedColor: 1,
     selectedFrame: 0,
     backgroundColor: 0,
+    selectedDli: 0,
     clipBoard: {},
     frames: []
 }
@@ -172,11 +174,38 @@ const userIntParse = (udata) => {
     }
 }
 
+const getFreshDli = colors => {
+    const dli = { back: [], c0: [], c1: [], c2: [], c3: [] };
+    for (let r = 0; r < options.spriteHeight; r++) {
+        dli.back[r] = workspace.backgroundColor;
+        dli.c0[r] = colors[0];
+        dli.c1[r] = colors[1];
+        dli.c2[r] = colors[2];
+        dli.c3[r] = colors[3];
+    }
+    return dli;
+
+}
+
+const fixWorkspace = () => {
+    for (let f of workspace.frames) {
+        if (!f.dli) {
+            f.dli = getFreshDli(f.colors);
+        }
+    }
+    if (workspace.selectedFrame >= workspace.frames.length) {
+        workspace.selectedFrame = 0;
+    }
+    if (workspace.selectedDli >= options.spriteHeight) {
+        workspace.selectedDli = 0;
+    }
+}
+
 const getEmptyFrame = () => {
     const frame = {
         player: [[], [], [], []],
         missile: [[], [], [], []],
-        colors: [0x24, 0xc8, 0x86, 0xea]
+        colors: [0x24, 0xc8, 0x86, 0xea],
     }
     for (let r = 0; r < options.spriteHeight; r++) {
         for (p = 0; p < 4; p++) {
@@ -184,6 +213,7 @@ const getEmptyFrame = () => {
             frame.missile[p][r] = 0;
         }
     }
+    frame.dli = getFreshDli(frame.colors);
     return frame;
 }
 
@@ -234,20 +264,34 @@ const redo = () => {
 
 // *********************************** COLOR OPERATIONS
 
-const getColors = (frame) => {
+const getColors = (frame, row) => {
     if (options.commonPalette) {
         frame = 0;
     }
-    return [
-        workspace.backgroundColor,
-        workspace.frames[frame].colors[0],
-        workspace.frames[frame].colors[1],
-        workspace.frames[frame].colors[0] | workspace.frames[frame].colors[1],
-        0,
-        workspace.frames[frame].colors[2],
-        workspace.frames[frame].colors[3],
-        workspace.frames[frame].colors[2] | workspace.frames[frame].colors[3]
-    ];
+    if (options.dliOn) {
+        const dli = workspace.frames[frame].dli;
+        return [
+            dli.back[row],
+            dli.c0[row],
+            dli.c1[row],
+            dli.c0[row] | dli.c1[row],
+            0,
+            dli.c2[row],
+            dli.c3[row],
+            dli.c2[row] | dli.c3[row]
+        ];
+    } else {
+        return [
+            workspace.backgroundColor,
+            workspace.frames[frame].colors[0],
+            workspace.frames[frame].colors[1],
+            workspace.frames[frame].colors[0] | workspace.frames[frame].colors[1],
+            0,
+            workspace.frames[frame].colors[2],
+            workspace.frames[frame].colors[3],
+            workspace.frames[frame].colors[2] | workspace.frames[frame].colors[3]
+        ];
+    }
 }
 
 const isColorActive = c => {
@@ -257,16 +301,17 @@ const isColorActive = c => {
     return true;
 }
 
-
 const updateColors = colors => {
     if (colors == undefined) {
-        colors = getColors(workspace.selectedFrame);
+        colors = getColors(workspace.selectedFrame, workspace.selectedDli);
     }
     for (let i = 0; i < 8; i++) {
         $(`#color${i}`)
             .css('background-color', getByteRGB(colors[i]))
             .attr('title', `${colors[i]} ($${decimalToHex(colors[i]).toUpperCase()})`)
     }
+    colorClicked(workspace.selectedColor);
+
     if (isPlayer23Mode()) {
         $('.p23only').removeClass('none');
     } else {
@@ -275,11 +320,37 @@ const updateColors = colors => {
     if (!isColorActive(workspace.selectedColor)) {
         workspace.selectedColor = 0;
     }
-    colorClicked(workspace.selectedColor);
+
+    if (options.dliOn) {
+        if (!workspace.frames[workspace.selectedFrame].dli) {
+            workspace.frames[workspace.selectedFrame].dli = getFreshDli(workspace.frames[workspace.selectedFrame].colors);
+        }
+        $('.dli_row').each((i, dlirow) => {
+            const row = Number(_.last(_.split(dlirow.id, '_')));
+            const dliLine = workspace.frames[workspace.selectedFrame].dli;
+            $(dlirow).children('li').eq(0).css('background-color', getByteRGB(dliLine.back[row]));
+            $(dlirow).children('li').eq(1).css('background-color', getByteRGB(dliLine.c0[row]));
+            if (isPlayer23Mode()) {
+                $(dlirow).children('li').eq(2).css('background-color', getByteRGB(dliLine.c1[row]));
+                $(dlirow).children('li').eq(3).css('background-color', getByteRGB(dliLine.c2[row]));
+                $(dlirow).children('li').eq(4).css('background-color', getByteRGB(dliLine.c3[row]));
+            } else {
+                $(dlirow).children('li').eq(2).css('background-color', getByteRGB(dliLine.c0[row]));
+                $(dlirow).children('li').eq(3).css('background-color', getByteRGB(dliLine.c1[row]));
+                $(dlirow).children('li').eq(4).css('background-color', getByteRGB(dliLine.c1[row]));
+            }
+        });
+        if (workspace.selectedDli >= options.spriteHeight) {
+            workspace.selectedDli = 0;
+        }
+        showDliCursor();
+    }
+
+
 }
 
 const fakeNewColor = (color, cval) => {
-    const fakeColors = getColors(workspace.selectedFrame);
+    const fakeColors = getColors(workspace.selectedFrame, workspace.selectedDli);
     fakeColors[color] = cval;
     fakeColors[3] = fakeColors[1] | fakeColors[2];
     fakeColors[7] = fakeColors[5] | fakeColors[6];
@@ -305,8 +376,20 @@ const colorClicked = (c) => {
     }
 }
 
-const getColorRGB = (frame, c) => {
-    const colors = getColors(frame);
+const showDliCursor = () => {
+    $('.dli_row').removeClass('selectedDli');
+    $(`#dlirow_${workspace.selectedDli}`).addClass('selectedDli');
+}
+
+const dliClicked = (c) => {
+    if (animationOn) { return false };
+    workspace.selectedDli = c;
+    updateColors();
+    storeWorkspace();
+}
+
+const getColorRGB = (frame, c, row) => {
+    const colors = getColors(frame, row);
     return getByteRGB(colors[c]);
 }
 
@@ -394,7 +477,7 @@ const getColorOn = (frame, col, row) => {
 }
 
 const getRGBOn = (frame, col, row) => {
-    return getColorRGB(frame, getColorOn(frame, col, row));
+    return getColorRGB(frame, getColorOn(frame, col, row), row);
 }
 
 const setColorOn = (col, row, color) => {
@@ -484,22 +567,42 @@ const setColorOn = (col, row, color) => {
 
 const setNewColor = (c, cval) => {
     const frame = (options.commonPalette) ? 0 : workspace.selectedFrame;
-    switch (c) {
-        case 0:
-            workspace.backgroundColor = cval;
-            break;
-        case 1:
-            workspace.frames[frame].colors[0] = cval;
-            break;
-        case 2:
-            workspace.frames[frame].colors[1] = cval;
-            break;
-        case 5:
-            workspace.frames[frame].colors[2] = cval;
-            break;
-        case 6:
-            workspace.frames[frame].colors[3] = cval;
-            break;
+    if (options.dliOn) {
+        switch (c) {
+            case 0:
+                workspace.frames[frame].dli.back[workspace.selectedDli] = cval;
+                break;
+            case 1:
+                workspace.frames[frame].dli.c0[workspace.selectedDli] = cval;
+                break;
+            case 2:
+                workspace.frames[frame].dli.c1[workspace.selectedDli] = cval;
+                break;
+            case 5:
+                workspace.frames[frame].dli.c2[workspace.selectedDli] = cval;
+                break;
+            case 6:
+                workspace.frames[frame].dli.c3[workspace.selectedDli] = cval;
+                break;
+        }
+    } else {
+        switch (c) {
+            case 0:
+                workspace.backgroundColor = cval;
+                break;
+            case 1:
+                workspace.frames[frame].colors[0] = cval;
+                break;
+            case 2:
+                workspace.frames[frame].colors[1] = cval;
+                break;
+            case 5:
+                workspace.frames[frame].colors[2] = cval;
+                break;
+            case 6:
+                workspace.frames[frame].colors[3] = cval;
+                break;
+        }
     }
     storeWorkspace();
 }
@@ -535,7 +638,7 @@ const showPalette = c => {
             .attr('id', `pal${c}`)
             .addClass('palette');
         let cval = 0;
-        const colors = getColors(workspace.selectedFrame);
+        const colors = getColors(workspace.selectedFrame, workspace.selectedDli);
 
         while (cval < 256) {
             const rgb = getByteRGB(cval);
@@ -751,6 +854,25 @@ const newCanvas = () => {
 
     $('#editor_box').append(cnv);
     editorCtx = cnv[0].getContext('2d');
+    if (options.dliOn) {
+        const cells = _.times(options.spriteHeight, i => {
+            return $("<ul/>")
+                .addClass('dli_row')
+                .css('height', editorWindow.cyoffset)
+                .attr('id', `dlirow_${i}`)
+                .bind('mousedown', e => { dliClicked(Number(_.last(_.split(e.currentTarget.id, '_')))) })
+                .append(_.times(5, i => $("<li/>")))
+        });
+        $('#dli_box')
+            .removeClass('none')
+            .css('height', editorWindow.sheight)
+            .empty()
+            .append(cells);
+    } else {
+        $('#dli_box')
+            .addClass('none')
+    }
+
     // editorCtx.translate(0.5, 0.5);
     // editorCtx.imageSmoothingEnabled = false;
 }
@@ -902,7 +1024,7 @@ const closeLibrary = () => {
 
 const toggleLibrary = () => {
     if (libraryOpened) {
-      closeLibrary();
+        closeLibrary();
     } else {
         $("#edit_tab").addClass('none');
         $("#lib_tab").removeClass('none');
@@ -1584,28 +1706,86 @@ const zoomOut = () => {
 
 // ************************************ FRAME OPERATION
 
+const copyDli = () => {
+    if (animationOn || options.commonPalette || !options.dliOn) { return false };
+    workspace.clipBoard.dli = {}
+    workspace.clipBoard.dli.back = workspace.frames[workspace.selectedFrame].dli.back;
+    if (isPlayerActive(0)) {
+        workspace.clipBoard.dli.c0 = workspace.frames[workspace.selectedFrame].dli.c0;
+        workspace.clipBoard.dli.c1 = workspace.frames[workspace.selectedFrame].dli.c1;
+    }
+    if (isPlayerActive(2)) {
+        workspace.clipBoard.dli.c2 = workspace.frames[workspace.selectedFrame].dli.c2;
+        workspace.clipBoard.dli.c3 = workspace.frames[workspace.selectedFrame].dli.c3;
+    }
+}
+
+const pasteDli = () => {
+    if (animationOn || options.commonPalette || !options.dliOn) { return false };
+    if (workspace.clipBoard.dli) {
+        workspace.frames[workspace.selectedFrame].dli.back = _.cloneDeep(workspace.clipBoard.dli.back);
+        if (isPlayerActive(0)) {
+            workspace.frames[workspace.selectedFrame].dli.c0 = _.cloneDeep(workspace.clipBoard.dli.c0);
+            workspace.frames[workspace.selectedFrame].dli.c1 = _.cloneDeep(workspace.clipBoard.dli.c1);
+        }
+        if (isPlayerActive(2)) {
+            workspace.frames[workspace.selectedFrame].dli.c2 = _.cloneDeep(workspace.clipBoard.dli.c2);
+            workspace.frames[workspace.selectedFrame].dli.c3 = _.cloneDeep(workspace.clipBoard.dli.c3);
+        }
+    }
+    updateScreen();
+    storeWorkspace();
+    return true;
+}
+
+
+
 const copyColors = () => {
     if (animationOn || options.commonPalette) { return false };
     workspace.clipBoard.colors = [];
-    for (k in workspace.clipBoard.frame.player) {
-        if (isPlayerActive(k)) {
-            workspace.clipBoard.frame.colors[k] = workspace.frames[workspace.selectedFrame].colors[k];
+    if (options.dliOn) {
+        workspace.clipBoard.colors[5] = workspace.frames[workspace.selectedFrame].dli.back[workspace.selectedDli];
+        if (isPlayerActive(0)) {
+            workspace.clipBoard.colors[0] = workspace.frames[workspace.selectedFrame].dli.c0[workspace.selectedDli];
+            workspace.clipBoard.colors[1] = workspace.frames[workspace.selectedFrame].dli.c1[workspace.selectedDli];
         }
-    };
+        if (isPlayerActive(2)) {
+            workspace.clipBoard.colors[2] = workspace.frames[workspace.selectedFrame].dli.c2[workspace.selectedDli];
+            workspace.clipBoard.colors[3] = workspace.frames[workspace.selectedFrame].dli.c3[workspace.selectedDli];
+        }
+    } else {
+        for (k in workspace.frames[workspace.selectedFrame].colors) {
+            if (isPlayerActive(k)) {
+                workspace.clipBoard.colors[k] = workspace.frames[workspace.selectedFrame].colors[k];
+            }
+        };
+    }
 
 }
 
 const pasteColors = () => {
     if (animationOn || options.commonPalette) { return false };
     if (workspace.clipBoard.colors) {
-        for (k in workspace.clipBoard.frame.player) {
-            if (isPlayerActive(k)) {
-                workspace.frames[workspace.selectedFrame].colors[k] = workspace.clipBoard.frame.colors[k];
+
+        if (options.dliOn) {
+            workspace.frames[workspace.selectedFrame].dli.back[workspace.selectedDli] = workspace.clipBoard.colors[5];
+            if (isPlayerActive(0)) {
+                workspace.frames[workspace.selectedFrame].dli.c0[workspace.selectedDli] = workspace.clipBoard.colors[0];
+                workspace.frames[workspace.selectedFrame].dli.c1[workspace.selectedDli] = workspace.clipBoard.colors[1];
             }
-        };
+            if (isPlayerActive(2)) {
+                workspace.frames[workspace.selectedFrame].dli.c2[workspace.selectedDli] = workspace.clipBoard.colors[2];
+                workspace.frames[workspace.selectedFrame].dli.c3[workspace.selectedDli] = workspace.clipBoard.colors[3];
+            }
+        } else {
+            for (k in workspace.clipBoard.colors) {
+                if (isPlayerActive(k)) {
+                    workspace.frames[workspace.selectedFrame].colors[k] = workspace.clipBoard.colors[k];
+                }
+            };
+        }
     }
-    drawEditor();
-    updateColors();
+    updateScreen();
     storeWorkspace();
     return true;
 }
@@ -1613,7 +1793,7 @@ const pasteColors = () => {
 const copyFrame = () => {
     if (animationOn) { return false };
     workspace.clipBoard.frame = getEmptyFrame();
-    for (k in workspace.clipBoard.frame.player) {
+    for (k in workspace.frames[workspace.selectedFrame].player) {
         if (isPlayerActive(k)) {
             workspace.clipBoard.frame.player[k] = _.cloneDeep(workspace.frames[workspace.selectedFrame].player[k]);
             workspace.clipBoard.frame.missile[k] = _.cloneDeep(workspace.frames[workspace.selectedFrame].missile[k]);
@@ -1649,9 +1829,19 @@ const swapPairs = () => {
             temp = cframe.missile[p];
             cframe.missile[p] = cframe.missile[p + 2]
             cframe.missile[p + 2] = temp
-            temp = cframe.colors[p];
-            cframe.colors[p] = cframe.colors[p + 2]
-            cframe.colors[p + 2] = temp
+            if (!options.dliOn) {
+                let temp = cframe.colors[p];
+                cframe.colors[p] = cframe.colors[p + 2]
+                cframe.colors[p + 2] = temp
+            }
+        }
+        if (options.dliOn) {
+            let temp = cframe.dli.c1;
+            cframe.dli.c1 = cframe.dli.c3;
+            cframe.dli.c3 = temp;
+            temp = cframe.dli.c2;
+            cframe.dli.c2 = cframe.dli.c0;
+            cframe.dli.c0 = temp;
         }
         updateScreen();
         storeWorkspace();
@@ -1723,15 +1913,15 @@ const flipHFrame = () => {
     }
 
     if (options.spriteGap01 > 0) {
-        const c = workspace.frames[workspace.selectedFrame].colors[0];
-        workspace.frames[workspace.selectedFrame].colors[0] = workspace.frames[workspace.selectedFrame].colors[1];
-        workspace.frames[workspace.selectedFrame].colors[1] = c;
+        const c = cf.colors[0];
+        cf.colors[0] = cf.colors[1];
+        cf.colors[1] = c;
     }
 
     if (options.spriteGap23 > 0) {
-        const c = workspace.frames[workspace.selectedFrame].colors[2];
-        workspace.frames[workspace.selectedFrame].colors[2] = workspace.frames[workspace.selectedFrame].colors[3];
-        workspace.frames[workspace.selectedFrame].colors[3] = c;
+        const c = cf.colors[2];
+        cf.colors[2] = cf.colors[3];
+        cf.colors[3] = c;
     }
 
     if (isPlayer23Mode() && (options.pairGap > 0) && layer01visible && layer23visible) {
@@ -1750,13 +1940,21 @@ const flipHFrame = () => {
             cf.missile[3] = m;
         }
 
-        let c = workspace.frames[workspace.selectedFrame].colors[0];
-        workspace.frames[workspace.selectedFrame].colors[0] = workspace.frames[workspace.selectedFrame].colors[2];
-        workspace.frames[workspace.selectedFrame].colors[2] = c;
-        c = workspace.frames[workspace.selectedFrame].colors[1];
-        workspace.frames[workspace.selectedFrame].colors[1] = workspace.frames[workspace.selectedFrame].colors[3];
-        workspace.frames[workspace.selectedFrame].colors[3] = c;
-
+        if (options.dliOn) {
+            let temp = cf.dli.c1;
+            cf.dli.c1 = cf.dli.c3;
+            cf.dli.c3 = temp;
+            temp = cf.dli.c2;
+            cf.dli.c2 = cf.dli.c0;
+            cf.dli.c0 = temp;
+        } else {
+            let c = cf.colors[0];
+            cf.colors[0] = cf.colors[2];
+            cf.colors[2] = c;
+            c = cf.colors[1];
+            cf.colors[1] = cf.colors[3];
+            cf.colors[3] = c;
+        }
     }
 
     updateColors();
@@ -1781,11 +1979,25 @@ const flipVFrame = () => {
                 workspace.frames[workspace.selectedFrame].missile[p][first] = last0;
             }
         }
-
+        if (options.dliOn) {
+            const cframe = workspace.frames[workspace.selectedFrame];
+            let temp = cframe.dli.c0[last];
+            cframe.dli.c0[last] = cframe.dli.c0[first];
+            cframe.dli.c0[first] = temp;
+            temp = cframe.dli.c1[last];
+            cframe.dli.c1[last] = cframe.dli.c1[first];
+            cframe.dli.c1[first] = temp;
+            temp = cframe.dli.c2[last];
+            cframe.dli.c2[last] = cframe.dli.c2[first];
+            cframe.dli.c2[first] = temp;
+            temp = cframe.dli.c3[last];
+            cframe.dli.c3[last] = cframe.dli.c3[first];
+            cframe.dli.c3[first] = temp;
+        }
         last--;
         first++;
     }
-    drawEditor();
+    updateScreen();
     storeWorkspace();
     return true;
 }
@@ -1845,7 +2057,7 @@ const moveFrame = dir => {
         }
     }
     workspace.frames.pop();
-    drawEditor();
+    updateScreen();
     storeWorkspace();
     options.ORDrawsOutside = prevOrState;
     return true;
@@ -1872,7 +2084,29 @@ const moveFrameUp = () => {
             workspace.frames[workspace.selectedFrame].missile[p].push(options.wrapEditor ? b0 : 0);
         }
     }
-    drawEditor();
+    if (options.dliOn) {
+        const cframe = workspace.frames[workspace.selectedFrame];
+        cframe.dli.c0.length = options.spriteHeight;
+        let temp = cframe.dli.c0.shift();
+        cframe.dli.c0.push(options.wrapEditor ? temp : cframe.dli.c0[0]);
+
+        cframe.dli.c1.length = options.spriteHeight;
+        temp = cframe.dli.c1.shift();
+        cframe.dli.c1.push(options.wrapEditor ? temp : cframe.dli.c1[0]);
+
+        cframe.dli.c2.length = options.spriteHeight;
+        temp = cframe.dli.c2.shift();
+        cframe.dli.c2.push(options.wrapEditor ? temp : cframe.dli.c2[0]);
+
+        cframe.dli.c3.length = options.spriteHeight;
+        temp = cframe.dli.c3.shift();
+        cframe.dli.c3.push(options.wrapEditor ? temp : cframe.dli.c3[0]);
+
+        cframe.dli.back.length = options.spriteHeight;
+        temp = cframe.dli.back.shift();
+        cframe.dli.back.push(options.wrapEditor ? temp : cframe.dli.back[0]);
+    }
+    updateScreen();
     storeWorkspace();
     return true;
 }
@@ -1889,6 +2123,30 @@ const moveFrameDown = () => {
             workspace.frames[workspace.selectedFrame].missile[p].unshift(options.wrapEditor ? b0 : 0);
         }
     }
+    if (options.dliOn) {
+        const cframe = workspace.frames[workspace.selectedFrame];
+        cframe.dli.c0.length = options.spriteHeight;
+        let temp = cframe.dli.c0.pop();
+        cframe.dli.c0.unshift(options.wrapEditor ? temp : cframe.dli.c0[0]);
+
+        cframe.dli.c1.length = options.spriteHeight;
+        temp = cframe.dli.c1.pop();
+        cframe.dli.c1.unshift(options.wrapEditor ? temp : cframe.dli.c1[cframe.dli.c1.length - 1]);
+
+        cframe.dli.c2.length = options.spriteHeight;
+        temp = cframe.dli.c2.pop();
+        cframe.dli.c2.unshift(options.wrapEditor ? temp : cframe.dli.c2[cframe.dli.c2.length - 1]);
+
+        cframe.dli.c3.length = options.spriteHeight;
+        temp = cframe.dli.c3.pop();
+        cframe.dli.c3.unshift(options.wrapEditor ? temp : cframe.dli.c3[cframe.dli.c3.length - 1]);
+
+        cframe.dli.back.length = options.spriteHeight;
+        temp = cframe.dli.back.pop();
+        cframe.dli.back.unshift(options.wrapEditor ? temp : cframe.dli.back[cframe.dli.back.length - 1]);
+    }
+
+
     drawEditor();
     storeWorkspace();
     return true;
@@ -2000,6 +2258,26 @@ const keyPressed = e => {               // always working
                     jumpToPrevFrame();
                 }
                 break;
+            case 'ArrowUp':
+                e.preventDefault();
+                if (options.dliOn) {
+                    workspace.selectedDli--;
+                    if (workspace.selectedDli < 0) {
+                        workspace.selectedDli = options.spriteHeight - 1;
+                    }
+                    updateColors();
+                }
+                break;
+            case 'ArrowDown':
+                e.preventDefault();
+                if (options.dliOn) {
+                    workspace.selectedDli++;
+                    if (workspace.selectedDli == options.spriteHeight) {
+                        workspace.selectedDli = 0;
+                    }
+                    updateColors();
+                }
+                break;
             case 'Home':
                 workspace.selectedFrame = 0;
                 updateScreen()
@@ -2009,12 +2287,20 @@ const keyPressed = e => {               // always working
                 updateScreen();
                 break;
             case 'BracketLeft':
-                copyColors();
+                if (e.shiftKey) {
+                    copyDli();
+                } else {
+                    copyColors();
+                }
                 break;
             case 'BracketRight':
-                if (saveUndo('paste colors', pasteColors)()) {
-                    updateScreen();
-                };
+                if (e.shiftKey) {
+                    if (saveUndo('paste dli', pasteDli)()) {
+                    };
+                } else {
+                    if (saveUndo('paste colors', pasteColors)()) {
+                    };
+                }
                 break;
             case 'Delete':
                 if (saveUndo('delete frame', delFrame)()) {
@@ -2093,20 +2379,22 @@ const libraryLoad = item => {
         'animationSpeed',
         'palette',
         'mergeMode',
+        'dliOn'
     ];
     const toLoad = libraryContents.data[item];
     for (let opt of optToLoad) {
-        options[opt] = toLoad.spriteOptions[opt];
+        options[opt] = toLoad.spriteOptions[opt] || defaultOptions[opt];
         //console.log(opt);
     }
     storeOptions();
-    workspace = _.cloneDeep(toLoad.spriteData);
+    workspace.frames = _.cloneDeep(toLoad.spriteData.frames);
+    fixWorkspace();
     storeWorkspace();
     stopPlayer();
     newCanvas();
-    library.authorName = toLoad.authorName?toLoad.authorName:'';
-    library.spriteName = toLoad.spriteName?toLoad.spriteName:'';
-    library.description = toLoad.description?toLoad.description:'';
+    library.authorName = toLoad.authorName ? toLoad.authorName : '';
+    library.spriteName = toLoad.spriteName ? toLoad.spriteName : '';
+    library.description = toLoad.description ? toLoad.description : '';
     closeLibrary();
 }
 
@@ -2120,11 +2408,11 @@ const libraryClick = e => {
 }
 
 const validateUpload = () => {
-    if ($("#lib_spriteName_s").val()=='') {
+    if ($("#lib_spriteName_s").val() == '') {
         libError('Sprite name must not be empty!');
         return false;
     }
-    if ($("#lib_authorName_s").val()=='') {
+    if ($("#lib_authorName_s").val() == '') {
         libError('Author must not be empty!');
         return false;
     }
@@ -2144,48 +2432,48 @@ const showLibContents = () => {
     if (libraryContents) {
         $('#library_list').empty();
         _.each(libraryContents.data, (spr, i) => {
-            const li = $("<li/>").attr('id',`lib_${i}`);
-            li.bind('mousedown',libraryClick);
-            const name = $("<div/>").addClass('lib lib_name').html(spr.spriteName).attr('title',spr.description);
+            const li = $("<li/>").attr('id', `lib_${i}`);
+            li.bind('mousedown', libraryClick);
+            const name = $("<div/>").addClass('lib lib_name').html(spr.spriteName).attr('title', spr.description);
             const frameCount = spr.spriteData.frames.length;
-            const fc = $("<span/>").addClass('lib_framecount').append(` (${frameCount} frame${frameCount==1?'':'s'})`);
+            const fc = $("<span/>").addClass('lib_framecount').append(` (${frameCount} frame${frameCount == 1 ? '' : 's'})`);
             name.append(fc);
             const author = $("<div/>").addClass('lib lib_author').html(spr.authorName);
             const sprdate = new Date(spr.uploadDate);
-            const date = $("<div/>").addClass('lib lib_date').attr('title',spr.uploadDate).html(sprdate.toDateString());
+            const date = $("<div/>").addClass('lib lib_date').attr('title', spr.uploadDate).html(sprdate.toDateString());
             const img = $('<img/>').addClass('lib').attr('src', spr.spritePreview);
             const imgbox = $("<div/>").addClass('lib lib_img').append(img);
-            li.append(imgbox,name,author,date);
+            li.append(imgbox, name, author, date);
             $('#library_list').append(li);
         });
         //console.log(libraryContents.totals)
         //const last = (LIBRARY_SPR_PER_PAGE * libraryPage) + libraryContents.totals.count;
         const pages = Math.ceil(libraryContents.totals.total / LIBRARY_SPR_PER_PAGE);
-       
-        const pager = $('<div/>').addClass('pager')
-        
-        const prev = $('<div/>').html('<<')
-        .addClass('menuitem')
-        .toggleClass('none',libraryPage==0)
-        .bind('mousedown', ()=>{swapPage(-1)});
-        const pos = $('<div/>').html(` Page ${libraryPage+1} of ${pages} `);
-        
-        const next = $('<div/>').html('>>')
-        .addClass('menuitem')
-        .toggleClass('none',libraryPage==pages-1)
-        .bind('mousedown', ()=>{swapPage(1)});
 
-        pager.append(prev,pos,next);
+        const pager = $('<div/>').addClass('pager')
+
+        const prev = $('<div/>').html('<<')
+            .addClass('menuitem')
+            .toggleClass('none', libraryPage == 0)
+            .bind('mousedown', () => { swapPage(-1) });
+        const pos = $('<div/>').html(` Page ${libraryPage + 1} of ${pages} `);
+
+        const next = $('<div/>').html('>>')
+            .addClass('menuitem')
+            .toggleClass('none', libraryPage == pages - 1)
+            .bind('mousedown', () => { swapPage(1) });
+
+        pager.append(prev, pos, next);
 
         $('#library_list').append(pager);
 
     }
-}   
+}
 
 const swapPage = dir => {
     const newPage = libraryPage + dir;
     const pages = Math.ceil(libraryContents.totals.total / LIBRARY_SPR_PER_PAGE);
-    if ((newPage>-1) && (newPage<pages)) {
+    if ((newPage > -1) && (newPage < pages)) {
         getLibraryData(newPage);
     }
 }
@@ -2220,18 +2508,18 @@ const updateLibraryTab = () => {
         const lib_val = library[lib_name[1]];
         $(`#${lib_id}`).val(lib_val);
     });
-    
+
     $('#libpreview').remove();
-    const preview = getFrameImage(0, 4, 4/options.lineResolution).attr('id','libpreview');
+    const preview = getFrameImage(0, 4, 4 / options.lineResolution).attr('id', 'libpreview');
     $('#upload_form').prepend(preview);
 }
 
 const libError = (msg, col) => {
     col = col || '#c66';
-    $('#lib_error').empty().html(msg).css('color',col).removeClass('none');
-    setTimeout(()=>{
+    $('#lib_error').empty().html(msg).css('color', col).removeClass('none');
+    setTimeout(() => {
         $('#lib_error').addClass('none');
-    },5000);
+    }, 5000);
 }
 
 const getLibraryData = page => {
@@ -2244,24 +2532,24 @@ const getLibraryData = page => {
         "url": `https://spred-c23d.restdb.io/rest/sprites?totals=true&sort=uploadDate&dir=-1&skip=${skip}&max=${LIBRARY_SPR_PER_PAGE}`,
         "method": "GET",
         "headers": {
-        "content-type": "application/json",
-        "x-apikey": "61ffef5b6a79155501021860",
-        "cache-control": "no-cache"
+            "content-type": "application/json",
+            "x-apikey": "61ffef5b6a79155501021860",
+            "cache-control": "no-cache"
         }
     }
     $.ajax(settings)
-    .done(function (response) {
-        libraryContents = response;
-        libraryPage = page;
-        showLibContents();
-        //libError('List Succesfully Loaded');
-        $('#lib_spinner').addClass('none');
-    })
-    .fail(function (response) {
-        console.log(response);
-        libError('Error loading list from database');
-        $('#lib_spinner').addClass('none');
-    })
+        .done(function (response) {
+            libraryContents = response;
+            libraryPage = page;
+            showLibContents();
+            //libError('List Succesfully Loaded');
+            $('#lib_spinner').addClass('none');
+        })
+        .fail(function (response) {
+            console.log(response);
+            libError('Error loading list from database');
+            $('#lib_spinner').addClass('none');
+        })
 }
 
 const getSpriteByKeys = keys => {
@@ -2274,30 +2562,30 @@ const getSpriteByKeys = keys => {
         "url": `https://spred-c23d.restdb.io/rest/sprites?q=${JSON.stringify(keys)}`,
         "method": "GET",
         "headers": {
-        "content-type": "application/json",
-        "x-apikey": "61ffef5b6a79155501021860",
-        "cache-control": "no-cache"
+            "content-type": "application/json",
+            "x-apikey": "61ffef5b6a79155501021860",
+            "cache-control": "no-cache"
         }
     }
     $.ajax(settings)
-    .done(function (response) {
-        libraryContents = response;
-        libraryPage = page;
-        showLibContents();
-        //libError('List Succesfully Loaded');
-        $('#lib_spinner').addClass('none');
-    })
-    .fail(function (response) {
-        console.log(response);
-        libError('Error loading list from database');
-        $('#lib_spinner').addClass('none');
-    })
+        .done(function (response) {
+            libraryContents = response;
+            libraryPage = page;
+            showLibContents();
+            //libError('List Succesfully Loaded');
+            $('#lib_spinner').addClass('none');
+        })
+        .fail(function (response) {
+            console.log(response);
+            libError('Error loading list from database');
+            $('#lib_spinner').addClass('none');
+        })
 }
 
 
 const postData = data => {
     $('#lib_spinner').removeClass('none');
-    const preview = getFrameImage(0, 2, 2/options.lineResolution);
+    const preview = getFrameImage(0, 2, 2 / options.lineResolution);
     var jsondata = _.assign({
         "uploaderId": library.uploaderId,
         "authorName": "",
@@ -2323,22 +2611,22 @@ const postData = data => {
     }
 
     $.ajax(settings)
-    .done(function (response) {
-        //console.log(response);
-        libError('The file was successfully uploaded','#5b5');
-        getLibraryData(0);
-    })
-    .fail(function (response) {
+        .done(function (response) {
+            //console.log(response);
+            libError('The file was successfully uploaded', '#5b5');
+            getLibraryData(0);
+        })
+        .fail(function (response) {
 
-        if (response.status==400) {
-            console.log(response);
-            libError('A sprite with this name already exists.');
+            if (response.status == 400) {
+                console.log(response);
+                libError('A sprite with this name already exists.');
+                $('#lib_spinner').addClass('none');
+                return false;
+            }
+            libError('Unexpected error during upload.')
             $('#lib_spinner').addClass('none');
-            return false;            
-        }
-        libError('Unexpected error during upload.')
-        $('#lib_spinner').addClass('none');
-    });
+        });
 }
 
 
@@ -2387,8 +2675,8 @@ $(document).ready(function () {
     app.addSeparator('framemenu');
     app.addMenuItem('Library', toggleLibrary, 'framemenu', 'Toggle Library', 'libButton');
 
-//    app.addMenuItem('Upload current project', saveUndo('upload', postData), 'libmenu', 'Upload');
-    app.addMenuItem('Reload Library', ()=>{getLibraryData(0)}, 'libmenu', 'Reload Library', 'libButton');
+    //    app.addMenuItem('Upload current project', saveUndo('upload', postData), 'libmenu', 'Upload');
+    app.addMenuItem('Reload Library', () => { getLibraryData(0) }, 'libmenu', 'Reload Library', 'libButton');
     app.addSeparator('libmenu');
     app.addMenuItem('Close Library', toggleLibrary, 'libmenu', 'Toggle Library', 'libButton');
     const err = $('<div/>').attr('id', 'lib_error');

@@ -19,6 +19,7 @@
       <ul id='framemenu' class='menulist'></ul>
       <div id='main'>
         <div id='editor_box'></div>
+        <div id='dli_box'></div>
         <div id='color_box'>
           <div class='colorbox' id='color0'>BACKGROUND</div>
           <div class='p01only layer'>
@@ -92,7 +93,8 @@
             <p><b>6</b> : Select 2 OR 3 color </p>
             <p><b>[</b> : Copy sprite colors</p>
             <p><b>]</b> : Paste sprite colors</p>
-            <p><b>+/-</b> : Editor zoom in / out</p>
+            <p><b>{</b> : Copy DLI list</p>
+            <p><b>}</b> : Paste DLI list</p>            <p><b>+/-</b> : Editor zoom in / out</p>
             <p><b>O</b> : Toggle OR behaviour </p>
             <p><b>W</b> : Toggle editor wrapping </p>
             <p><b>M</b> : Toggle active region marker </p>
@@ -226,6 +228,11 @@
 
           <fieldset>
             <label class='dialog_label checkbox_label'>
+              <input type='checkbox' id='opt_dliOn_b' />Enable DLI</label>
+          </fieldset>
+
+          <fieldset>
+            <label class='dialog_label checkbox_label'>
               <input type='checkbox' id='opt_showGrid_b' />Show <span class='shortcut'>G</span>rid</label>
           </fieldset>
         </div>
@@ -299,9 +306,9 @@
     </div>
   </div>
 
-  <script src='js/exportTemplates.js?v=094' type='text/javascript'></script>
-  <script src='js/gui.js?v=094' type='text/javascript'></script>
-  <script src='js/app.js?v=094' type='text/javascript'></script>
+  <script src='js/exportTemplates.js?v=100' type='text/javascript'></script>
+  <script src='js/gui.js?v=100' type='text/javascript'></script>
+  <script src='js/app.js?v=100' type='text/javascript'></script>
 </body>
 
 </html>

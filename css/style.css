@@ -25,6 +25,10 @@ body {
   
 }
 
+#app {
+  min-width: 1200px;
+}
+
 .menulist {
   display: block;
   overflow: auto;
@@ -249,16 +253,50 @@ input:disabled {
   overflow: auto;
   overflow: visible;
   position: relative;
-  min-width: 1200px;
 }
 
 #editor_box {
   position: relative;
   z-index: 500;
   float: left;
-  margin-right: 15px;
 }
 
+#dli_box {
+  margin-top: -1px;
+  position: relative;
+  z-index: 600;
+  float: left;
+  margin-left: 5px;
+  width:20px;
+  margin-left: 15px;
+}
+
+ul.dli_row {
+  display: block;
+  list-style: none;
+  width:20px;
+  border-bottom: #000 1px solid;
+  box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+ul.dli_row>li {
+  list-style: none;
+  display: block;
+  float: left;
+  width: 4px;
+  height: 100%;
+
+}
+
+.selectedDli {
+  box-shadow: -2px 0 0 rgba(255, 255, 255, 0.5), 2px 0 0 rgba(255, 255, 255, 0.5);
+  border-bottom: rgba(255, 255, 255, 0.5) 2px solid!important;
+  border-top: rgba(255, 255, 255, 0.5) 2px solid!important;
+}
 
 
 #editor_canvas {  
@@ -272,6 +310,7 @@ input:disabled {
   float: left;
   overflow: visible;
   min-width: 300px;
+  margin-left: 15px;
 }
 
 .colorbox {
