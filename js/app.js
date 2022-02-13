@@ -20,8 +20,8 @@ const spriteWidthPerMode = [
 const zoomCellSize = [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
 
 const defaultOptions = {
-    version: '0.9.4',
-    storageName: 'SprEdStore094',
+    version: '0.9.5',
+    storageName: 'SprEdStore095',
     undoLevels: 128,
     lineResolution: 1,
     spriteHeight: 16,
@@ -1587,9 +1587,9 @@ const zoomOut = () => {
 const copyColors = () => {
     if (animationOn || options.commonPalette) { return false };
     workspace.clipBoard.colors = [];
-    for (k in workspace.clipBoard.frame.player) {
+    for (k in workspace.frames[workspace.selectedFrame].colors) {
         if (isPlayerActive(k)) {
-            workspace.clipBoard.frame.colors[k] = workspace.frames[workspace.selectedFrame].colors[k];
+            workspace.clipBoard.colors[k] = workspace.frames[workspace.selectedFrame].colors[k];
         }
     };
 
@@ -1598,9 +1598,9 @@ const copyColors = () => {
 const pasteColors = () => {
     if (animationOn || options.commonPalette) { return false };
     if (workspace.clipBoard.colors) {
-        for (k in workspace.clipBoard.frame.player) {
+        for (k in workspace.frames[workspace.selectedFrame].colors) {
             if (isPlayerActive(k)) {
-                workspace.frames[workspace.selectedFrame].colors[k] = workspace.clipBoard.frame.colors[k];
+                workspace.frames[workspace.selectedFrame].colors[k] = workspace.clipBoard.colors[k];
             }
         };
     }
@@ -1613,7 +1613,7 @@ const pasteColors = () => {
 const copyFrame = () => {
     if (animationOn) { return false };
     workspace.clipBoard.frame = getEmptyFrame();
-    for (k in workspace.clipBoard.frame.player) {
+    for (k in workspace.frames[workspace.selectedFrame].player) {
         if (isPlayerActive(k)) {
             workspace.clipBoard.frame.player[k] = _.cloneDeep(workspace.frames[workspace.selectedFrame].player[k]);
             workspace.clipBoard.frame.missile[k] = _.cloneDeep(workspace.frames[workspace.selectedFrame].missile[k]);
