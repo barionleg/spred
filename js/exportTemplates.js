@@ -17,6 +17,9 @@ const exportTemplates = [
         missiles: {
             prefix: '\n; MISSILES \n', postfix: ''
         },
+        dli: {
+            prefix: '\n; DLI #d#\n', postfix: ''
+        },
         frame: {
             prefix: '; FRAME #f#\n', postfix: ''
         },
@@ -45,6 +48,9 @@ const exportTemplates = [
         },
         missiles: {
             prefix: '\n; MISSILES \n', postfix: ''
+        },
+        dli: {
+            prefix: '\n; DLI #d#\n', postfix: ''
         },
         frame: {
             prefix: '; FRAME #f#\n', postfix: ''
@@ -75,6 +81,9 @@ const exportTemplates = [
         missiles: {
             prefix: '', postfix: ''
         },
+        dli: {
+            prefix: '', postfix: ''
+        },
         frame: {
             prefix: '', postfix: ''
         },
@@ -103,8 +112,11 @@ const exportTemplates = [
         missiles: {
             prefix: '\n// missiles\n', postfix: ''
         },
+        dli: {
+            prefix: '\n// dli #d#\n', postfix: ''
+        },
         frame: {
-            prefix: "  frames#s#_#f#: array [0..#maxheight#] of byte = (\n", postfix: "  );\n"
+            prefix: "  frames#d##s#_#f#: array [0..#maxheight#] of byte = (\n", postfix: "  );\n"
         },
         line: {
             numbers: false, prefix: '    ', postfix: ",\n", lastpostfix: "\n"
@@ -130,8 +142,11 @@ const exportTemplates = [
         missiles: {
             prefix: '\n; missiles\n', postfix: ''
         },
+        dli: {
+            prefix: '\n; dli #d#\n', postfix: ''
+        },
         frame: {
-            prefix: "BYTE ARRAY FRAMES#s#_#f# =[\n", postfix: "]\n"
+            prefix: "BYTE ARRAY FRAMES#d##s#_#f# =[\n", postfix: "]\n"
         },
         line: {
             numbers: false, prefix: '  ', postfix: "\n"
@@ -157,8 +172,11 @@ const exportTemplates = [
         missiles: {
             prefix: '\n\n//missiles\n', postfix: ''
         },
+        dli: {
+            prefix: '\n\n//dli #d#\n', postfix: ''
+        },
         frame: {
-            prefix: "unsigned char frames#s#_#f#[#height#] = {\n", postfix: "};\n"
+            prefix: "unsigned char frames#d##s#_#f#[#height#] = {\n", postfix: "};\n"
         },
         line: {
             numbers: false, prefix: '    ', postfix: ",\n", lastpostfix: "\n"
@@ -184,8 +202,11 @@ const exportTemplates = [
         missiles: {
             prefix: "\n'missiles\n", postfix: ''
         },
+        dli: {
+            prefix: "\n'dli #d#\n", postfix: ''
+        },
         frame: {
-            prefix: "data frame#s#_#f#()", postfix: ""
+            prefix: "data frame#d##s#_#f#()", postfix: ""
         },
         line: {
             numbers: false, prefix: ' byte = ', postfix: ",\ndata", lastpostfix: "\n"
@@ -210,6 +231,9 @@ const exportTemplates = [
             prefix: '', postfix: ''
         },
         missiles: {
+            prefix: '', postfix: ''
+        },
+        dli: {
             prefix: '', postfix: ''
         },
         frame: {
@@ -241,6 +265,9 @@ const exportTemplates = [
         missiles: {
             prefix: '', postfix: ''
         },
+        dli: {
+            prefix: '', postfix: ''
+        },
         frame: {
             prefix: '', postfix: ''
         },
@@ -267,6 +294,9 @@ const exportTemplates = [
             prefix: '', postfix: ''
         },
         missiles: {
+            prefix: '', postfix: ''
+        },
+        dli: {
             prefix: '', postfix: ''
         },
         frame: {

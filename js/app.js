@@ -1230,6 +1230,7 @@ const parseTemplate = (template) => {
     let lineBody = '';
     let tframe = 0;
     let tsprite = 0;
+    let tdli = '';
     let lines = '';
 
     const formatByte = b => {
@@ -1267,7 +1268,7 @@ const parseTemplate = (template) => {
 
     const getBlock = (block, blockTemp) => {
         let blockLines = `${blockTemp.prefix}${block}${blockTemp.postfix}`;
-        blockLines = blockLines.replace(/#f#/g, tframe).replace(/#s#/g, tsprite);
+        blockLines = blockLines.replace(/#f#/g, tframe).replace(/#s#/g, tsprite).replace(/#d#/g, tdli.toUpperCase());
         //lineCount+= blockLines.split(/\r\n|\r|\n/).length + 1;
         return blockLines
     }
@@ -1358,15 +1359,33 @@ const parseTemplate = (template) => {
         pushBlock(missiles, template.missiles);
     }
 
+    const pushDliData = () => {
+        tsprite = '';
+        const dliList = ['back','c0','c1','c2','c3'];
+        for (tdli of dliList) {
+            let dli = '';
+            _.each(workspace.frames, (frame, f) => {
+                lines = '';
+                tframe = f;
+                pushArray(frame.dli[tdli]);
+                dli += getBlock(lines, template.frame);
+            });
+            pushBlock(dli, template.dli);
+        }
+    }
+
     for (let p = 0; p < playerCount(); p++) { pushSpriteColors(p) };
 
     for (let p = 0; p < playerCount(); p++) { pushSpriteData(p) };
 
     if (isMissileMode()) { pushMissileData() };
 
+    if (options.dliOn) { pushDliData() };
+
     const parsed = isPlayer23Mode() ?
         parseTemplateVars(`${template.block.prefix23 || template.block.prefix}${templateLines}${template.block.postfix}`) :
         parseTemplateVars(`${template.block.prefix}${templateLines}${template.block.postfix}`);
+
     return parsed;
 }
 
@@ -1376,11 +1395,12 @@ const saveFile = () => {
     binList.push(sprHeader);
     binList.push(workspace.selectedFrame, workspace.selectedColor, workspace.backgroundColor);
     binList.push(options.animationSpeed, options.palette == 'PAL' ? 0 : 1, options.lineResolution);
-    binList.push(options.mergeMode)
-    binList.push(options.spriteGap01)
-    binList.push(options.spriteGap23)
-    binList.push(options.pairGap)
-    binList.push([0, 0, 0]); // 3 unused bytes
+    binList.push(options.mergeMode);
+    binList.push(options.spriteGap01);
+    binList.push(options.spriteGap23);
+    binList.push(options.pairGap);
+    binList.push(options.dliOn);
+    binList.push([0, 0]); // 3 unused bytes
     binList.push(workspace.frames.length, options.spriteHeight);
     for (let p = 0; p < playerCount(); p++) {
         binList.push(_.map(workspace.frames, f => f.colors[p]));
@@ -1393,6 +1413,17 @@ const saveFile = () => {
             _.each(workspace.frames, f => { f.missile[p].length = options.spriteHeight; binList.push(f.missile[p]) });
         }
     }
+
+    if (options.dliOn) {
+        const dliList = ['back','c0','c1','c2','c3'];
+        for (let tdli of dliList) {
+            _.each(workspace.frames, f => {
+                f.dli[tdli].length = options.spriteHeight;
+                binList.push(f.dli[tdli]);
+            });
+        }
+    }
+    
     binList = _.flatMap(binList);
     var a = document.createElement('a');
     document.body.appendChild(a);
@@ -1487,7 +1518,8 @@ const parseBinary = (binData) => {
         options.spriteGap01 = binData[binPtr++];
         options.spriteGap23 = binData[binPtr++];
         options.pairGap = binData[binPtr++];
-        binPtr += 2; // unused bytes
+        options.dliOn = binData[binPtr++];
+        binPtr += 1; // unused bytes
         let frameCount = binData[binPtr++];
 
         if (frameCount != 0) {                       // P0-P1 old format - preserved for compatibility
@@ -1504,19 +1536,23 @@ const parseBinary = (binData) => {
                 missile: [[], [], [], []],
                 colors: [binData[binPtr++]]
             }
+            frame.dli = getFreshDli(frame.colors);
             wrkspc.frames.push(frame);
         }
+        
         for (let p = 1; p < playerCount(); p++) {
             for (let f = 0; f < frameCount; f++) {
                 wrkspc.frames[f].colors.push(binData[binPtr++]);
             }
         }
+        
         for (let p = 0; p < playerCount(); p++) {
             for (let f = 0; f < frameCount; f++) {
                 wrkspc.frames[f].player[p] = Array.from(binData.subarray(binPtr, binPtr + options.spriteHeight));
                 binPtr += options.spriteHeight;
             }
         }
+        
         if (isMissileMode()) {
             for (let p = 0; p < playerCount(); p++) {
                 for (let f = 0; f < frameCount; f++) {
@@ -1526,6 +1562,16 @@ const parseBinary = (binData) => {
             }
         }
 
+        if (options.dliOn) {
+            const dliList = ['back', 'c0', 'c1', 'c2', 'c3'];
+            for (let tdli of dliList) {
+                for (let f = 0; f < frameCount; f++) {
+                    wrkspc.frames[f].dli[tdli] = Array.from(binData.subarray(binPtr, binPtr + options.spriteHeight));
+                    binPtr += options.spriteHeight;
+                }
+            }
+        }
+    
         wrkspc.frames.length = frameCount;
         return wrkspc;
 
