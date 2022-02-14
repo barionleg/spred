@@ -2429,7 +2429,7 @@ const libraryLoad = item => {
     ];
     const toLoad = libraryContents.data[item];
     for (let opt of optToLoad) {
-        options[opt] = toLoad.spriteOptions[opt] || defaultOptions[opt];
+        options[opt] = toLoad.spriteOptions[opt]!==undefined? toLoad.spriteOptions[opt] || defaultOptions[opt];
         //console.log(opt);
     }
     storeOptions();
