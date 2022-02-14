@@ -562,7 +562,7 @@ const setColorOn = (col, row, color) => {
         c = c01 ? c01 : c;
     }
 
-    drawBlock(col, row, getColorRGB(workspace.selectedFrame, c));
+    drawBlock(col, row, getColorRGB(workspace.selectedFrame, c, row));
 }
 
 const setNewColor = (c, cval) => {
