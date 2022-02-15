@@ -19,8 +19,12 @@ const spriteWidthPerMode = [
 
 const zoomCellSize = [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
 
+const dliMap = ['back', 'c0', 'c1', 'c2', 'c3'];
+const dliColorMap = ['back', 'c0', 'c1', null, null, 'c2', 'c3'];
+
+
 const defaultOptions = {
-    version: '1.0.0',
+    version: '1.0.1',
     storageName: 'SprEdStore100',
     undoLevels: 128,
     lineResolution: 1,
@@ -79,6 +83,8 @@ const defaultLibrary = {
 let library = {};
 let libraryContents = null;
 let workspace = {};
+let movieLoop = null;
+let dliRange = null;
 
 const reversedBytes = [
     0x00, 0x80, 0x40, 0xC0, 0x20, 0xA0, 0x60, 0xE0, 0x10, 0x90, 0x50, 0xD0, 0x30, 0xB0, 0x70, 0xF0,
@@ -361,7 +367,6 @@ const fakeNewColor = (color, cval) => {
     }
 }
 
-
 const colorClicked = (c) => {
     if (animationOn) { return false };
     if (!layer01visible && c > 0 && c < 4) { return false };
@@ -377,15 +382,33 @@ const colorClicked = (c) => {
 }
 
 const showDliCursor = () => {
+    $('.dli_row').removeClass('inRangeDli');
     $('.dli_row').removeClass('selectedDli');
-    $(`#dlirow_${workspace.selectedDli}`).addClass('selectedDli');
+    if (dliRange) {
+        for (let r = dliRange[0]; r <= dliRange[1]; r++) {
+            $(`#dlirow_${r}`).addClass('inRangeDli');
+        }
+    }
+    $(`#dlirow_${workspace.selectedDli}`).removeClass('inRangeDli').addClass('selectedDli');
 }
 
-const dliClicked = (c) => {
+const dliClicked = c => {
     if (animationOn) { return false };
     workspace.selectedDli = c;
     updateColors();
     storeWorkspace();
+}
+
+const dliRowClicked = e => {
+    if (animationOn) { return false };
+    const r = Number(_.last(_.split(e.currentTarget.id, '_')))
+    dliRange = [Math.min(workspace.selectedDli, r), Math.max(workspace.selectedDli, r)];
+    if (e.buttons == 2) { // right button
+        updateColors();
+    } else {
+        dliRange = e.shiftKey ? dliRange : null;
+        dliClicked(r);
+    }
 }
 
 const getColorRGB = (frame, c, row) => {
@@ -566,42 +589,22 @@ const setColorOn = (col, row, color) => {
 }
 
 const setNewColor = (c, cval) => {
-    const frame = (options.commonPalette) ? 0 : workspace.selectedFrame;
     if (options.dliOn) {
-        switch (c) {
-            case 0:
-                workspace.frames[frame].dli.back[workspace.selectedDli] = cval;
-                break;
-            case 1:
-                workspace.frames[frame].dli.c0[workspace.selectedDli] = cval;
-                break;
-            case 2:
-                workspace.frames[frame].dli.c1[workspace.selectedDli] = cval;
-                break;
-            case 5:
-                workspace.frames[frame].dli.c2[workspace.selectedDli] = cval;
-                break;
-            case 6:
-                workspace.frames[frame].dli.c3[workspace.selectedDli] = cval;
-                break;
+        const frameDli = workspace.frames[workspace.selectedFrame].dli[dliColorMap[c]];
+        if (dliRange) {
+            for (let r = dliRange[0]; r <= dliRange[1]; r++) {
+                frameDli[r] = cval;
+            }
+        } else {
+            frameDli[workspace.selectedDli] = cval;
         }
     } else {
-        switch (c) {
-            case 0:
-                workspace.backgroundColor = cval;
-                break;
-            case 1:
-                workspace.frames[frame].colors[0] = cval;
-                break;
-            case 2:
-                workspace.frames[frame].colors[1] = cval;
-                break;
-            case 5:
-                workspace.frames[frame].colors[2] = cval;
-                break;
-            case 6:
-                workspace.frames[frame].colors[3] = cval;
-                break;
+        const frame = (options.commonPalette) ? 0 : workspace.selectedFrame;
+        const colorMap = [null, 0, 1, null, null, 2, 3];
+        if (colorMap[c] == null) {
+            workspace.backgroundColor = cval;
+        } else {
+            workspace.frames[frame].colors[colorMap[c]] = cval;
         }
     }
     storeWorkspace();
@@ -742,7 +745,7 @@ const clickOnCanvas = (event) => {
     setColorOn(currentCell.col, currentCell.row, color);
 }
 
-const clickRightOnCanvas = (event) => {
+const stopMenu = (event) => {
     if (animationOn) { return false };
     event.preventDefault();
     return false;
@@ -846,7 +849,7 @@ const newCanvas = () => {
         .attr('id', 'editor_canvas')
         .attr('width', editorWindow.swidth)
         .attr('height', editorWindow.sheight)
-        .contextmenu(clickRightOnCanvas)
+        .contextmenu(stopMenu)
         .bind('mousedown', clickOnCanvas)
         .bind('mousemove', onCanvasMove)
         .bind('mouseup', drawingEnded)
@@ -860,7 +863,8 @@ const newCanvas = () => {
                 .addClass('dli_row')
                 .css('height', editorWindow.cyoffset)
                 .attr('id', `dlirow_${i}`)
-                .bind('mousedown', e => { dliClicked(Number(_.last(_.split(e.currentTarget.id, '_')))) })
+                .bind('mousedown', dliRowClicked)
+                .contextmenu(stopMenu)
                 .append(_.times(5, i => $("<li/>")))
         });
         $('#dli_box')
@@ -924,6 +928,11 @@ const drawEditor = () => {
     $(`#fbox_${workspace.selectedFrame}`).append(getFrameImage(workspace.selectedFrame, 4, 4 / options.lineResolution));
 }
 
+const isInMovieLoop = f => {
+    if (!movieLoop) { return false }
+    return (f >= movieLoop[0]) && (f <= movieLoop[1])
+}
+
 const drawTimeline = () => {
     $('#framelist').empty();
     if (workspace.selectedFrame >= workspace.frames) {
@@ -936,8 +945,12 @@ const drawTimeline = () => {
             .attr('id', `fbox_${f}`)
             .append(`<div>$${decimalToHex(f)}</div>`)
             .bind('mousedown', frameboxClicked)
+            .contextmenu(stopMenu)
             .append(cnv)
 
+        if (isInMovieLoop(f)) {
+            framebox.addClass('inLoop');
+        }
         if (f == workspace.selectedFrame) {
             framebox.addClass('currentFrame');
         }
@@ -960,7 +973,13 @@ const updateScreen = () => {
 const frameboxClicked = e => {
     if (animationOn) { return false };
     const f = Number(_.last(_.split(e.target.id, '_')));
-    jumpToFrame(f);
+    movieLoop = [Math.min(workspace.selectedFrame, f), Math.max(workspace.selectedFrame, f)];
+    if (e.buttons == 2) { // right button
+        drawTimeline();
+    } else {
+        movieLoop = e.shiftKey ? movieLoop : null;
+        jumpToFrame(f);
+    }
 }
 
 const drawGridLine = (x1, y1, x2, y2) => {
@@ -1056,6 +1075,14 @@ const valIntInput = (inputId) => {
     return true;
 }
 
+const getCheckBox = (inputId) => {
+    return $(`#opt_${inputId}_b`).prop('checked');
+}
+
+const setCheckBox = (inputId, uint) => {
+    $(`#opt_${inputId}_b`).prop('checked', uint);
+}
+
 const toggleOpt = name => {
     options[name] = options[name] ? 0 : 1;
     refreshOptions();
@@ -1098,6 +1125,11 @@ const validateOptions = () => {
     if (!valIntInput('lineStep')) return false;
     if (!valIntInput('startingLine')) return false;
     if (!valIntInput('cellSize')) return false;
+    if (getCheckBox('dliOn') && getCheckBox('commonPalette')) {
+        alert('Cannot use DLI with common palette!');
+        setCheckBox('dliOn', false);
+        return false;
+    }
     return true;
 }
 
@@ -1361,8 +1393,7 @@ const parseTemplate = (template) => {
 
     const pushDliData = () => {
         tsprite = '';
-        const dliList = ['back','c0','c1','c2','c3'];
-        for (tdli of dliList) {
+        for (tdli of dliMap) {
             let dli = '';
             _.each(workspace.frames, (frame, f) => {
                 lines = '';
@@ -1415,15 +1446,14 @@ const saveFile = () => {
     }
 
     if (options.dliOn) {
-        const dliList = ['back','c0','c1','c2','c3'];
-        for (let tdli of dliList) {
+        for (let tdli of dliMap) {
             _.each(workspace.frames, f => {
                 f.dli[tdli].length = options.spriteHeight;
                 binList.push(f.dli[tdli]);
             });
         }
     }
-    
+
     binList = _.flatMap(binList);
     var a = document.createElement('a');
     document.body.appendChild(a);
@@ -1539,20 +1569,20 @@ const parseBinary = (binData) => {
             frame.dli = getFreshDli(frame.colors);
             wrkspc.frames.push(frame);
         }
-        
+
         for (let p = 1; p < playerCount(); p++) {
             for (let f = 0; f < frameCount; f++) {
                 wrkspc.frames[f].colors.push(binData[binPtr++]);
             }
         }
-        
+
         for (let p = 0; p < playerCount(); p++) {
             for (let f = 0; f < frameCount; f++) {
                 wrkspc.frames[f].player[p] = Array.from(binData.subarray(binPtr, binPtr + options.spriteHeight));
                 binPtr += options.spriteHeight;
             }
         }
-        
+
         if (isMissileMode()) {
             for (let p = 0; p < playerCount(); p++) {
                 for (let f = 0; f < frameCount; f++) {
@@ -1571,7 +1601,7 @@ const parseBinary = (binData) => {
                 }
             }
         }
-    
+
         wrkspc.frames.length = frameCount;
         return wrkspc;
 
@@ -1618,6 +1648,18 @@ const jumpToFrame = f => {
         workspace.selectedFrame = f;
         updateScreen();
     }
+}
+
+const jumpToNextMovieFrame = () => {
+    if (!movieLoop) {
+        jumpToNextFrame();
+    } else {
+        workspace.selectedFrame++;
+        if (workspace.selectedFrame > movieLoop[1]) {
+            workspace.selectedFrame = movieLoop[0];
+        }
+    }
+    updateScreen();
 }
 
 const jumpToNextFrame = () => {
@@ -1669,7 +1711,7 @@ const clearFrame = () => {
 const startPlayer = () => {
     if ((animationOn == 0) && !playerInterval && (workspace.frames.length > 1)) {
         animationOn = 1;
-        playerInterval = setInterval(jumpToNextFrame, options.animationSpeed * 20);
+        playerInterval = setInterval(jumpToNextMovieFrame, options.animationSpeed * 20);
         $("#timeline li").first().addClass('red');
     }
 }
@@ -2295,12 +2337,14 @@ const keyPressed = e => {               // always working
             case 'ArrowRight':
                 e.preventDefault();
                 if (!animationOn) {
+                    movieLoop = null;
                     jumpToNextFrame();
                 }
                 break;
             case 'ArrowLeft':
                 e.preventDefault();
                 if (!animationOn) {
+                    movieLoop = null;
                     jumpToPrevFrame();
                 }
                 break;
@@ -2311,6 +2355,7 @@ const keyPressed = e => {               // always working
                     if (workspace.selectedDli < 0) {
                         workspace.selectedDli = options.spriteHeight - 1;
                     }
+                    dliRange = null;
                     updateColors();
                 }
                 break;
@@ -2321,6 +2366,7 @@ const keyPressed = e => {               // always working
                     if (workspace.selectedDli == options.spriteHeight) {
                         workspace.selectedDli = 0;
                     }
+                    dliRange = null;
                     updateColors();
                 }
                 break;
@@ -2429,7 +2475,7 @@ const libraryLoad = item => {
     ];
     const toLoad = libraryContents.data[item];
     for (let opt of optToLoad) {
-        options[opt] = toLoad.spriteOptions[opt]!==undefined? toLoad.spriteOptions[opt] : defaultOptions[opt];
+        options[opt] = toLoad.spriteOptions[opt] !== undefined ? toLoad.spriteOptions[opt] : defaultOptions[opt];
         //console.log(opt);
     }
     storeOptions();
@@ -2754,7 +2800,7 @@ $(document).ready(function () {
     $('.layer_switch').bind('mousedown', layerSwitchClicked);
     $('#upload').bind('mousedown', libraryUpload);
 
-    $("#main").bind('mousedown', closePalette)
+    $("#app").bind('mousedown', () => { closePalette(); closeAllDialogs() });
     document.addEventListener('keydown', keyPressed);
     $('html').on('dragover', e => { e.preventDefault() });
 

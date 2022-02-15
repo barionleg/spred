@@ -22,11 +22,11 @@ body {
   -webkit-user-select: none;
   -ms-user-select: none;
   user-select: none;
-  
 }
 
 #app {
   min-width: 1200px;
+  overflow: hidden;
 }
 
 .menulist {
@@ -293,9 +293,15 @@ ul.dli_row>li {
 }
 
 .selectedDli {
-  box-shadow: -2px 0 0 rgba(255, 255, 255, 0.5), 2px 0 0 rgba(255, 255, 255, 0.5);
-  border-bottom: rgba(255, 255, 255, 0.5) 2px solid!important;
-  border-top: rgba(255, 255, 255, 0.5) 2px solid!important;
+  box-shadow: -2px 0 0 rgba(255, 255, 255, 0.7), 2px 0 0 rgba(255, 255, 255, 0.7);
+  border-bottom: rgba(255, 255, 255, 0.7) 2px solid!important;
+  border-top: rgba(255, 255, 255, 0.7) 2px solid!important;
+}
+
+.inRangeDli {
+  box-shadow: -1px 0 0 rgba(255, 255, 255, 0.6), 1px 0 0 rgba(255, 255, 255, 0.6);
+  border-bottom: rgba(255, 255, 255, 0.6) 1px solid!important;
+  border-top: rgba(255, 255, 255, 0.6) 1px solid!important;
 }
 
 
@@ -463,8 +469,17 @@ ul.dli_row>li {
 }
 
 .currentFrame {
-  background-color:rgb(97, 80, 69);
+  background-color:rgba(255, 255, 255, 0.1)!important;
   color:rgb(91, 155, 180);
+}
+
+.inLoop {
+  background-color:rgba(255, 255, 255, 0.05);
+  color:rgb(91, 155, 180);
+}
+
+.inLoop>canvas {
+  border: 1px solid rgb(204, 150, 0);
 }
 
 .currentFrame>canvas {
@@ -734,3 +749,4 @@ ul#library_list>li>div>img {
   float: left;
   margin-right: 20px;
 }
+
