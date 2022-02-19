@@ -201,7 +201,6 @@ fieldset, hr {
     padding:2px;
 }
 
-
 .dialog_block {
     display: block;
     float: left;
@@ -513,6 +512,10 @@ ul.dli_row>li {
   opacity: 0.7;
 }
 
+.rpad {
+  margin-right: 0.5em;
+}
+
 .marker {
   background-color: rgba(180, 180, 180, 0.2);
   position: absolute;
@@ -701,7 +704,7 @@ ul#library_list>li {
 }
 
 .lib_name {
-  width:280px;
+  width:250px;
   color: antiquewhite;
   margin-left: 5px;
 }
@@ -714,12 +717,13 @@ ul#library_list>li {
 .lib_date {
   margin-left:10px;
   padding-top: 5px;
+  font-size: 12px;
 }
 
 .lib_author {
   position: absolute;
   top:26px;
-  left:300px;
+  left:270px;
   color: rgb(147, 151, 122);
   font-size: 12px;
 }

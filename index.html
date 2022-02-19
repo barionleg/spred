@@ -65,6 +65,14 @@
         If you want to remove your artwork from the library - let me know at bocianu@gmail
       </div>
       <div id='listbox'>
+        
+        <fieldset>
+          <input type='text' id='opt_libSearchQuery_s' class='dialog_text_input fleft rpad'>
+          <div class='menuitem' id='libSearch'>Search</div>
+          <div class='menuitem' id='libSearchReset'>Reset</div>
+
+        </fieldset>
+
         <ul id='library_list'></ul>
         <div id='lib_spinner' class="lds-ellipsis none">
           <div></div>
@@ -95,7 +103,8 @@
             <p><b>[</b> : Copy sprite colors</p>
             <p><b>]</b> : Paste sprite colors</p>
             <p><b>{</b> : Copy DLI list</p>
-            <p><b>}</b> : Paste DLI list</p>            <p><b>+/-</b> : Editor zoom in / out</p>
+            <p><b>}</b> : Paste DLI list</p>
+            <p><b>+/-</b> : Editor zoom in / out</p>
             <p><b>O</b> : Toggle OR behaviour </p>
             <p><b>W</b> : Toggle editor wrapping </p>
             <p><b>M</b> : Toggle active region marker </p>
@@ -175,14 +184,6 @@
           <h3>Editor Options:</h3>
 
           <fieldset>
-            <label class='dialog_label'>Sprite line resolution:</label>
-            <select id='opt_lineResolution_i' class='dialog_text_input'>
-              <option value='1'>2 lines</option>
-              <option value='2'>1 line</option>
-            </select>
-          </fieldset>
-
-          <fieldset>
             <label class='dialog_label checkbox_label'>
               <input type='checkbox' id='opt_squarePixel_b' />Square Pixel</label>
           </fieldset>
@@ -213,6 +214,11 @@
 
           <fieldset>
             <label class='dialog_label checkbox_label'>
+              <input type='checkbox' id='opt_showGrid_b' />Show <span class='shortcut'>G</span>rid</label>
+          </fieldset>
+
+          <fieldset>
+            <label class='dialog_label checkbox_label'>
               <input type='checkbox' id='opt_ORDrawsOutside_b' /><span class='shortcut'>O</span>R color draws on
               both</label>
           </fieldset>
@@ -235,12 +241,27 @@
 
           <fieldset>
             <label class='dialog_label checkbox_label'>
-              <input type='checkbox' id='opt_showGrid_b' />Show <span class='shortcut'>G</span>rid</label>
+              <input type='checkbox' id='opt_multiFrameEdit_b' />Edit Frame Range</label>
           </fieldset>
+
+          <fieldset>
+            <label class='dialog_label checkbox_label'>
+              <input type='checkbox' id='opt_drawOnPlay_b' />Draw on Animation</label>
+          </fieldset>
+
         </div>
 
         <div class='dialog_block'>
           <h3>Sprite Options:</h3>
+
+          <fieldset>
+            <label class='dialog_label'>Sprite line resolution:</label>
+            <select id='opt_lineResolution_i' class='dialog_text_input'>
+              <option value='1'>2 lines</option>
+              <option value='2'>1 line</option>
+            </select>
+          </fieldset>          
+
           <fieldset>
             <label class='dialog_label'>Sprite Merge Mode:</label>
             <select id='opt_mergeMode_i' class='dialog_text_input'>
@@ -308,9 +329,9 @@
     </div>
   </div>
 
-  <script src='js/exportTemplates.js?v=101' type='text/javascript'></script>
-  <script src='js/gui.js?v=101' type='text/javascript'></script>
-  <script src='js/app.js?v=101' type='text/javascript'></script>
+  <script src='js/exportTemplates.js?v=103' type='text/javascript'></script>
+  <script src='js/gui.js?v=103' type='text/javascript'></script>
+  <script src='js/app.js?v=103' type='text/javascript'></script>
 
 </body>
 
