@@ -24,8 +24,8 @@ const dliColorMap = ['back', 'c0', 'c1', null, null, 'c2', 'c3'];
 
 
 const defaultOptions = {
-    version: '1.0.3',
-    storageName: 'SprEdStore103',
+    version: '1.0.4',
+    storageName: 'SprEdStore104',
     undoLevels: 128,
     lineResolution: 1,
     spriteHeight: 16,
@@ -50,8 +50,17 @@ const defaultOptions = {
     dliOn: 0,
     multiFrameEdit: 1,
     drawOnPlay: 0,
-    libSearchQuery: ''
+    libSearchQuery: '',
+    libSearchSort: 'uploadDate',
+    libSearchDir: 'desc'
 }
+
+const sortBy = {
+    "date":"uploadDate",
+    "name":"spriteName",
+    "frames":"frames"
+}
+
 let options = {};
 const dontSave = ['version', 'storageName'];
 const editorWindow = {}
@@ -2687,10 +2696,12 @@ const getLibraryData = page => {
     $('#lib_spinner').removeClass('none');
     const skip = LIBRARY_SPR_PER_PAGE * page;
     const filter = options.libSearchQuery;
+    const sort = options.libSearchSort;
+    const dir = options.libSearchDir == 'asc'?1:-1
     var settings = {
         "async": true,
         "crossDomain": true,
-        "url": `https://spred-c23d.restdb.io/rest/sprites?totals=true&filter=${filter}&sort=uploadDate&dir=-1&skip=${skip}&max=${LIBRARY_SPR_PER_PAGE}`,
+        "url": `https://spred-c23d.restdb.io/rest/sprites?totals=true&filter=${filter}&sort=${sort}&dir=${dir}&skip=${skip}&max=${LIBRARY_SPR_PER_PAGE}`,
         "method": "GET",
         "headers": {
             "content-type": "application/json",

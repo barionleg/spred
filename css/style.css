@@ -675,7 +675,9 @@ ul.dli_row>li {
 #listbox {
   display: block;
   overflow: auto;
-  float:left 
+  float:left;
+  font-size:14px;
+  color:rgba(255, 255, 255, 0.575)
 }
 
 ul#library_list {
