@@ -3004,7 +3004,7 @@ $(document).ready(function () {
     app.addSeparator('timemenu');
     app.addMenuItem('Delete All', deleteAll, 'timemenu', 'Clears and deletes all frames');
     app.addSeparator('timemenu');
-    app.addMenuItem('Export Gif', exportGif, 'timemenu', 'Exports gif file');
+    app.addMenuItem('Export to Gif', exportGif, 'timemenu', 'Exports gif file');
 
     $('.colorbox').bind('mousedown', (e) => {
         colorClicked(Number(_.last(e.target.id)));
