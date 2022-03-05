@@ -25,8 +25,8 @@ const dliColorMap = ['back', 'c0', 'c1', null, null, 'c2', 'c3'];
 
 
 const defaultOptions = {
-    version: '1.0.5',
-    storageName: 'SprEdStore105',
+    version: '1.0.6',
+    storageName: 'SprEdStore106',
     undoLevels: 128,
     lineResolution: 1,
     spriteHeight: 16,
@@ -53,6 +53,7 @@ const defaultOptions = {
     drawOnPlay: 0,
     linkColors: 0,
     frameDelayMode: 0,
+    gifExportScale: 4,
     libSearchQuery: '',
     libSearchSort: 'uploadDate',
     libSearchDir: 'desc'
@@ -1061,7 +1062,7 @@ const userPromptInt = (msg, def) => {
     if (_.isNaN(uint)) {
         return null;
     };
-    return uint?uint.clamp(1, 255):null;
+    return uint ? uint.clamp(1, 255) : null;
 }
 
 
@@ -1229,6 +1230,7 @@ const validateOptions = () => {
     if (!valIntInput('lineStep')) return false;
     if (!valIntInput('startingLine')) return false;
     if (!valIntInput('cellSize')) return false;
+    if (!valIntInput('gifExportScale')) return false;
     if (getCheckBox('dliOn') && getCheckBox('commonPalette')) {
         alert('Cannot use DLI with common palette!');
         setCheckBox('dliOn', false);
@@ -1245,6 +1247,7 @@ const clampOptions = () => {
     clampOption('pairGap', 0, isMissileMode() ? 20 : 16);
     clampOption('animationSpeed', 1, 100);
     clampOption('cellSize', 0, zoomCellSize.length - 1);
+    clampOption('gifExportScale', 1, 32);
 }
 
 const storeOptions = () => {
@@ -2910,6 +2913,32 @@ const postData = data => {
         });
 }
 
+const exportGif = () => {
+    const gif = new GIF({
+        workerScript: "js/gif.worker.js",
+        workers: 2,
+        quality: 1,
+    });
+
+    _.each(workspace.frames, (f,i) => {
+        const delayTime = (options.frameDelayMode == 1)?f.delayTime:options.animationSpeed;
+        gif.addFrame(getFrameImage(i, options.gifExportScale, options.gifExportScale / options.lineResolution)[0], { delay: delayTime*20 });
+    });
+
+    gif.on('finished', function (blob) {
+        let a = document.createElement("a") 
+        let blobURL = URL.createObjectURL(blob)
+        const name = prompt('set filename of saved file:', 'mysprite.gif');
+        a.download = name;
+        a.href = blobURL
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+    });
+
+    gif.render();
+}
+
 
 // ************************************************  ON START INIT 
 
@@ -2974,6 +3003,8 @@ $(document).ready(function () {
     app.addMenuItem('🞑🡆', animFrameRight, 'timemenu', 'Moves current frame right');
     app.addSeparator('timemenu');
     app.addMenuItem('Delete All', deleteAll, 'timemenu', 'Clears and deletes all frames');
+    app.addSeparator('timemenu');
+    app.addMenuItem('Export Gif', exportGif, 'timemenu', 'Exports gif file');
 
     $('.colorbox').bind('mousedown', (e) => {
         colorClicked(Number(_.last(e.target.id)));
