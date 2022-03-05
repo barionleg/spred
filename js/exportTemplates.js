@@ -23,6 +23,9 @@ const exportTemplates = [
         frame: {
             prefix: '; FRAME #f#\n', postfix: ''
         },
+        frameDelays: {
+            prefix: '\n; DELAY TIMES \n', postfix: ''
+        },
         line: {
             numbers: false,
             prefix: '  dta ', postfix: '\n'
@@ -54,6 +57,9 @@ const exportTemplates = [
         },
         frame: {
             prefix: '; FRAME #f#\n', postfix: ''
+        },
+        frameDelays: {
+            prefix: '\n; DELAY TIMES \n', postfix: ''
         },
         line: {
             numbers: false,
@@ -87,6 +93,9 @@ const exportTemplates = [
         frame: {
             prefix: '', postfix: ''
         },
+        frameDelays: {
+            prefix: '', postfix: ''
+        },
         line: {
             numbers: true,
             prefix: '.BYTE ', postfix: '\n'
@@ -118,6 +127,9 @@ const exportTemplates = [
         frame: {
             prefix: "  frames#d##s#_#f#: array [0..#maxheight#] of byte = (\n", postfix: "  );\n"
         },
+        frameDelays: {
+            prefix: '\n// delay Times\n', postfix: ''
+        },
         line: {
             numbers: false, prefix: '    ', postfix: ",\n", lastpostfix: "\n"
         },
@@ -147,6 +159,9 @@ const exportTemplates = [
         },
         frame: {
             prefix: "BYTE ARRAY FRAMES#d##s#_#f# =[\n", postfix: "]\n"
+        },
+        frameDelays: {
+            prefix: '\n; delay times\n', postfix: ''
         },
         line: {
             numbers: false, prefix: '  ', postfix: "\n"
@@ -178,6 +193,9 @@ const exportTemplates = [
         frame: {
             prefix: "unsigned char frames#d##s#_#f#[#height#] = {\n", postfix: "};\n"
         },
+        frameDelays: {
+            prefix: '\n\n//delay times\n', postfix: ''
+        },
         line: {
             numbers: false, prefix: '    ', postfix: ",\n", lastpostfix: "\n"
         },
@@ -208,6 +226,9 @@ const exportTemplates = [
         frame: {
             prefix: "data frame#d##s#_#f#()", postfix: ""
         },
+        frameDelays: {
+            prefix: "\n'delay times\n", postfix: ''
+        },
         line: {
             numbers: false, prefix: ' byte = ', postfix: ",\ndata", lastpostfix: "\n"
         },
@@ -237,6 +258,9 @@ const exportTemplates = [
             prefix: '', postfix: ''
         },
         frame: {
+            prefix: '', postfix: ''
+        },
+        frameDelays: {
             prefix: '', postfix: ''
         },
         line: {
@@ -271,6 +295,9 @@ const exportTemplates = [
         frame: {
             prefix: '', postfix: ''
         },
+        frameDelays: {
+            prefix: '', postfix: ''
+        },
         line: {
             numbers: false, prefix: '', postfix: "\n"
         },
@@ -300,6 +327,9 @@ const exportTemplates = [
             prefix: '', postfix: ''
         },
         frame: {
+            prefix: '', postfix: ''
+        },
+        frameDelays: {
             prefix: '', postfix: ''
         },
         line: {

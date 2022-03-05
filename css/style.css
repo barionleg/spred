@@ -456,11 +456,22 @@ ul.dli_row>li {
   cursor: pointer;
 }
 
-.framebox>div {
+.framebox>div.frameNum {
   pointer-events: none; 
 }
 
+.frameNum {
+  float:left;
+}
+
+.frameDelay {
+  clear: right;
+  float: right;
+  color: rgb(160, 112, 22);
+}
+
 .framebox>canvas {
+  clear: both;
   float:left;
   margin:0;
   border: 1px solid black;

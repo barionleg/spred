@@ -12,6 +12,7 @@ const MODE_PM0PM1PM2PM3 = 5;
 const MODE_MP0MP1MP2MP3 = 6;
 
 const LIBRARY_SPR_PER_PAGE = 8;
+const DEFAULT_DELAY_TIME = 10;
 
 const spriteWidthPerMode = [
     8, 10, 10, 10, 8, 10, 10, 10
@@ -25,7 +26,7 @@ const dliColorMap = ['back', 'c0', 'c1', null, null, 'c2', 'c3'];
 
 const defaultOptions = {
     version: '1.0.5',
-    storageName: 'SprEdStore104',
+    storageName: 'SprEdStore105',
     undoLevels: 128,
     lineResolution: 1,
     spriteHeight: 16,
@@ -51,15 +52,16 @@ const defaultOptions = {
     multiFrameEdit: 1,
     drawOnPlay: 0,
     linkColors: 0,
+    frameDelayMode: 0,
     libSearchQuery: '',
     libSearchSort: 'uploadDate',
     libSearchDir: 'desc'
 }
 
 const sortBy = {
-    "date":"uploadDate",
-    "name":"spriteName",
-    "frames":"frames"
+    "date": "uploadDate",
+    "name": "spriteName",
+    "frames": "frames"
 }
 
 let options = {};
@@ -69,7 +71,7 @@ let currentCell = {}
 let penDown = false;
 let editorCtx = null;
 let animationOn = 0;
-let playerInterval = null;
+let playerTimeout = null;
 let undos = [];
 let redos = [];
 let beforeDrawingState = null;
@@ -211,6 +213,9 @@ const fixWorkspace = () => {
         if (!f.dli) {
             f.dli = getFreshDli(f.colors);
         }
+        if (!f.delayTime) {
+            f.delayTime = DEFAULT_DELAY_TIME;
+        }
     }
     if (workspace.selectedFrame >= workspace.frames.length) {
         workspace.selectedFrame = 0;
@@ -228,6 +233,7 @@ const getEmptyFrame = () => {
         player: [[], [], [], []],
         missile: [[], [], [], []],
         colors: [0x24, 0xc8, 0x86, 0xea],
+        delayTime: DEFAULT_DELAY_TIME
     }
     for (let r = 0; r < options.spriteHeight; r++) {
         for (p = 0; p < 4; p++) {
@@ -390,8 +396,8 @@ const colorClicked = (c) => {
     workspace.selectedColor = c;
     $('.colorbox').removeClass('colorSelected');
     $(`#color${c}`).addClass('colorSelected');
-    if (options.linkColors && (c>0)) {
-        const clink = c<4?c+4:c-4;
+    if (options.linkColors && (c > 0)) {
+        const clink = c < 4 ? c + 4 : c - 4;
         $(`#color${clink}`).addClass('colorSelected');
     }
     storeWorkspace();
@@ -525,8 +531,8 @@ const getRGBOn = (frame, col, row) => {
 
 const drawPix = (frame, col, row, color) => {
     setColorOn(frame, col, row, color);
-    if (options.linkColors && (color>0)) {
-        const color2 = color<4?color+4:color-4;
+    if (options.linkColors && (color > 0)) {
+        const color2 = color < 4 ? color + 4 : color - 4;
         setColorOn(frame, col, row, color2);
     }
 }
@@ -709,7 +715,7 @@ const updateLayers = () => {
         if (!layer23visible) { $('.p23only').addClass('layer_hidden') }
         $('.layer_switch').removeClass('none');
         $('#colorLink').removeClass('none');
-        $('#linkImg').toggleClass('linked', options.linkColors==1);
+        $('#linkImg').toggleClass('linked', options.linkColors == 1);
     } else {
         $('.layer').removeClass('layer_default');
         $('.layer_switch').addClass('none');
@@ -868,15 +874,15 @@ const showMarker = color => {
     removeMarker();
     if (_.indexOf([1, 2, 3, 5, 6, 7], color) != -1) {
         if (options.linkColors) {
-            const c1 = color<4?color:color-4;
-            const c2 = color>4?color:color+4;
+            const c1 = color < 4 ? color : color - 4;
+            const c2 = color > 4 ? color : color + 4;
             const [start1, width1] = getMarkerPosition(c1);
             const [start2, width2] = getMarkerPosition(c2);
             const end1 = start1 + width1;
             const end2 = start2 + width2;
             drawMarker(0, start1);
-            if (start2>end1) {
-                drawMarker(end1, start2-end1);
+            if (start2 > end1) {
+                drawMarker(end1, start2 - end1);
             }
             drawMarker(end2, editorWindow.columns - end2);
         } else {
@@ -994,13 +1000,26 @@ const drawTimeline = () => {
     }
     _.each(workspace.frames, (frame, f) => {
         const cnv = getFrameImage(f, 4, 4 / options.lineResolution)
+        const frameNum = $("<div/>")
+            .addClass('frameNum')
+            .append(decimalToHex(f));
+        const frameDelay = $("<div/>")
+            .addClass('frameDelay')
+            .bind('mousedown', frameDelayClicked)
+            .append(frame.delayTime);
+
+
         const framebox = $("<div/>")
             .addClass('framebox')
             .attr('id', `fbox_${f}`)
-            .append(`<div>$${decimalToHex(f)}</div>`)
+            .append(frameNum)
             .bind('mousedown', frameboxClicked)
             .contextmenu(stopMenu)
             .append(cnv)
+
+        if (options.frameDelayMode) {
+            framebox.prepend(frameDelay)
+        }
 
         if (isInMovieLoop(f)) {
             framebox.addClass('inLoop');
@@ -1034,6 +1053,31 @@ const frameboxClicked = e => {
         movieLoop = e.shiftKey ? movieLoop : null;
         jumpToFrame(f);
     }
+}
+
+const userPromptInt = (msg, def) => {
+    const uval = prompt(msg, Number(def));
+    const uint = userIntParse(uval);
+    if (_.isNaN(uint)) {
+        return null;
+    };
+    return uint?uint.clamp(1, 255):null;
+}
+
+
+const frameDelayClicked = e => {
+    e.preventDefault();
+    if (animationOn) { return false };
+    const fclick = Number(_.last(_.split(e.target.parentElement.id, '_')));
+    const delay = userPromptInt('Set delay value:', workspace.frames[fclick].delayTime);
+    if (delay) {
+        const [first, last] = (options.multiFrameEdit && movieLoop) ? movieLoop : [fclick, fclick];
+        for (let f = first; f <= last; f++) {
+            workspace.frames[f].delayTime = delay;
+        }
+        drawTimeline();
+    }
+    return false;
 }
 
 const drawGridLine = (x1, y1, x2, y2) => {
@@ -1117,7 +1161,7 @@ const toggleOptions = () => {
 }
 
 const toggleLink = () => {
-    options.linkColors = options.linkColors?0:1;
+    options.linkColors = options.linkColors ? 0 : 1;
     storeOptions();
     updateScreen();
 }
@@ -1468,6 +1512,12 @@ const parseTemplate = (template) => {
         }
     }
 
+    const pushFrameDelayData = () => {
+        lines = '';
+        pushArray(_.map(workspace.frames, f => f.delayTime));
+        pushBlock(lines, template.frameDelays);
+    }
+
     for (let p = 0; p < playerCount(); p++) { pushSpriteColors(p) };
 
     for (let p = 0; p < playerCount(); p++) { pushSpriteData(p) };
@@ -1475,6 +1525,8 @@ const parseTemplate = (template) => {
     if (isMissileMode()) { pushMissileData() };
 
     if (options.dliOn) { pushDliData() };
+
+    if (options.frameDelayMode) { pushFrameDelayData() };
 
     const parsed = isPlayer23Mode() ?
         parseTemplateVars(`${template.block.prefix23 || template.block.prefix}${templateLines}${template.block.postfix}`) :
@@ -1494,7 +1546,8 @@ const saveFile = () => {
     binList.push(options.spriteGap23);
     binList.push(options.pairGap);
     binList.push(options.dliOn);
-    binList.push([0, 0]); // 3 unused bytes
+    binList.push(options.frameDelayMode);
+    binList.push(0); // 1 unused byte
     binList.push(workspace.frames.length, options.spriteHeight);
     for (let p = 0; p < playerCount(); p++) {
         binList.push(_.map(workspace.frames, f => f.colors[p]));
@@ -1515,6 +1568,12 @@ const saveFile = () => {
                 binList.push(f.dli[tdli]);
             });
         }
+    }
+
+    if (options.frameDelayMode) {
+        _.each(workspace.frames, f => {
+            binList.push(f.delayTime);
+        });
     }
 
     binList = _.flatMap(binList);
@@ -1566,15 +1625,12 @@ const parseBinary = (binData) => {
         options.spriteHeight = binData[binPtr++];
         options.spriteGap01 = binData[binPtr++];
         for (let f = 0; f < 17; f++) {
-            const frame = {
-                player: [[], [], [], []],
-                missile: [[], [], [], []],
-                colors: [binData[binPtr++]]
-            }
+            const frame = getEmptyFrame();
+            frame.colors[0] = binData[binPtr++]
             wrkspc.frames.push(frame);
         }
         for (let f = 0; f < 17; f++) {
-            wrkspc.frames[f].colors.push(binData[binPtr++]);
+            wrkspc.frames[f].colors[1] = binData[binPtr++];
         }
         wrkspc.backgroundColor = binData[binPtr++];
         for (let f = 0; f < 17; f++) {
@@ -1590,12 +1646,17 @@ const parseBinary = (binData) => {
         options.animationSpeed = binData[binPtr++];
         options.palette = (binData[binPtr++] == 1) ? 'NTSC' : 'PAL';
         wrkspc.frames.length = aplFrames;
+        options.mergeMode = MODE_P0P1;
+        options.dliOn = 0;
+        options.lineResolution = 2;
+        options.frameDelayMode = 0;
         return wrkspc;
     }
 
     if (areEqual(aplHeader, binData.subarray(0, 4))) {               // PARSE APL 
         return parseAPL();
-
+    } else if (areEqual(apl2Header, binData.subarray(0, 4))) {    // PARSE APL+ (52 rows)
+        return parseAPL(52);
     } else if (areEqual(sprHeader, binData.subarray(0, 4))) {            // PARSE SPR 
 
         const wrkspc = _.clone(defaultWorkspace);
@@ -1612,7 +1673,7 @@ const parseBinary = (binData) => {
         options.spriteGap23 = binData[binPtr++];
         options.pairGap = binData[binPtr++];
         options.dliOn = binData[binPtr++];
-        binPtr += 1; // unused bytes
+        options.frameDelayMode = binData[binPtr++];
         let frameCount = binData[binPtr++];
 
         if (frameCount != 0) {                       // P0-P1 old format - preserved for compatibility
@@ -1624,18 +1685,15 @@ const parseBinary = (binData) => {
         }
 
         for (let f = 0; f < frameCount; f++) {
-            const frame = {
-                player: [[], [], [], []],
-                missile: [[], [], [], []],
-                colors: [binData[binPtr++]]
-            }
+            const frame = getEmptyFrame();
+            frame.colors[0] = binData[binPtr++]
             frame.dli = getFreshDli(frame.colors);
             wrkspc.frames.push(frame);
         }
 
         for (let p = 1; p < playerCount(); p++) {
             for (let f = 0; f < frameCount; f++) {
-                wrkspc.frames[f].colors.push(binData[binPtr++]);
+                wrkspc.frames[f].colors[p] = binData[binPtr++];
             }
         }
 
@@ -1665,11 +1723,15 @@ const parseBinary = (binData) => {
             }
         }
 
+        if (options.frameDelayMode) {
+            for (let f = 0; f < frameCount; f++) {
+                wrkspc.frames[f].delayTime = binData[binPtr++];
+            }
+        }
+
         wrkspc.frames.length = frameCount;
         return wrkspc;
 
-    } else if (areEqual(apl2Header, binData.subarray(0, 4))) {    // PARSE APL+ (52 rows)
-        return parseAPL(52);
     } else {
         parseError('unknown format!')
         return false;
@@ -1779,19 +1841,26 @@ const clearFrame = frame => {
     return true;
 }
 
+const playerRunner = () => {
+    jumpToNextMovieFrame();
+    const frameDelay = options.frameDelayMode ? workspace.frames[workspace.selectedFrame].delayTime : options.animationSpeed;
+    playerTimeout = setTimeout(playerRunner, frameDelay * 20);
+}
+
 const startPlayer = () => {
-    if ((animationOn == 0) && !playerInterval && (workspace.frames.length > 1)) {
+    if ((animationOn == 0) && !playerTimeout && (workspace.frames.length > 1)) {
         animationOn = 1;
-        playerInterval = setInterval(jumpToNextMovieFrame, options.animationSpeed * 20);
         $("#timeline li").first().addClass('red');
+        const frameDelay = options.frameDelayMode ? workspace.frames[workspace.selectedFrame].delayTime : options.animationSpeed;
+        playerTimeout = setTimeout(playerRunner, frameDelay * 20);
     }
 }
 
 const stopPlayer = () => {
     animationOn = 0;
-    clearInterval(playerInterval);
+    clearTimeout(playerTimeout);
     $("#timeline li").first().removeClass('red');
-    playerInterval = null;
+    playerTimeout = null;
 }
 
 const cloneFrame = () => {
@@ -2579,7 +2648,8 @@ const libraryLoad = item => {
         'animationSpeed',
         'palette',
         'mergeMode',
-        'dliOn'
+        'dliOn',
+        'frameDelayMode'
     ];
     const toLoad = libraryContents.data[item];
     for (let opt of optToLoad) {
@@ -2735,7 +2805,7 @@ const getLibraryData = page => {
     const skip = LIBRARY_SPR_PER_PAGE * page;
     const filter = options.libSearchQuery;
     const sort = options.libSearchSort;
-    const dir = options.libSearchDir == 'asc'?1:-1
+    const dir = options.libSearchDir == 'asc' ? 1 : -1
     var settings = {
         "async": true,
         "crossDomain": true,
