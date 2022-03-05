@@ -552,9 +552,33 @@ ul.dli_row>li {
 
 .layer_default {
   padding: 5px 4px 0px 4px;
-  background-color: rgb(97, 68, 49);
+  background-color: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   margin-bottom: 3px;
+}
+
+#colorLink
+{
+  position: absolute;
+  top:77px;
+  left: 181px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  width:15px;
+  height: 30px;
+  cursor: pointer;
+  padding: 5px 5px;
+}
+
+#colorLink>img {
+  height: 100%;
+  width: auto;
+  opacity: 0.3;
+}
+
+.linked {
+  opacity: 0.7!important;
+  filter: invert(1);
 }
 
 .layer_hidden {

@@ -24,7 +24,7 @@ const dliColorMap = ['back', 'c0', 'c1', null, null, 'c2', 'c3'];
 
 
 const defaultOptions = {
-    version: '1.0.4',
+    version: '1.0.5',
     storageName: 'SprEdStore104',
     undoLevels: 128,
     lineResolution: 1,
@@ -50,6 +50,7 @@ const defaultOptions = {
     dliOn: 0,
     multiFrameEdit: 1,
     drawOnPlay: 0,
+    linkColors: 0,
     libSearchQuery: '',
     libSearchSort: 'uploadDate',
     libSearchDir: 'desc'
@@ -389,6 +390,10 @@ const colorClicked = (c) => {
     workspace.selectedColor = c;
     $('.colorbox').removeClass('colorSelected');
     $(`#color${c}`).addClass('colorSelected');
+    if (options.linkColors && (c>0)) {
+        const clink = c<4?c+4:c-4;
+        $(`#color${clink}`).addClass('colorSelected');
+    }
     storeWorkspace();
     removeMarker();
     if (options.markActiveRegion) {
@@ -516,6 +521,14 @@ const getColorOn = (frame, col, row) => {
 
 const getRGBOn = (frame, col, row) => {
     return getColorRGB(frame, getColorOn(frame, col, row), row);
+}
+
+const drawPix = (frame, col, row, color) => {
+    setColorOn(frame, col, row, color);
+    if (options.linkColors && (color>0)) {
+        const color2 = color<4?color+4:color-4;
+        setColorOn(frame, col, row, color2);
+    }
 }
 
 const setColorOn = (frame, col, row, color) => {
@@ -695,9 +708,12 @@ const updateLayers = () => {
         if (!layer01visible) { $('.p01only').addClass('layer_hidden') }
         if (!layer23visible) { $('.p23only').addClass('layer_hidden') }
         $('.layer_switch').removeClass('none');
+        $('#colorLink').removeClass('none');
+        $('#linkImg').toggleClass('linked', options.linkColors==1);
     } else {
         $('.layer').removeClass('layer_default');
         $('.layer_switch').addClass('none');
+        $('#colorLink').addClass('none');
         layer01visible = 1;
         layer23visible = 1;
     }
@@ -762,7 +778,7 @@ const clickOnCanvas = (event) => {
     currentCell.color = color;
     const [first, last] = (options.multiFrameEdit && movieLoop) ? movieLoop : [workspace.selectedFrame, workspace.selectedFrame];
     for (let f = first; f <= last; f++) {
-        setColorOn(f, currentCell.col, currentCell.row, currentCell.color);
+        drawPix(f, currentCell.col, currentCell.row, currentCell.color);
     }
     if (last != first) {
         drawTimeline();
@@ -851,10 +867,23 @@ const drawMarker = (cell, width) => {
 const showMarker = color => {
     removeMarker();
     if (_.indexOf([1, 2, 3, 5, 6, 7], color) != -1) {
-        const [cell, width] = getMarkerPosition(color);
-
-        drawMarker(0, cell);
-        drawMarker(cell + width, editorWindow.columns - width - cell);
+        if (options.linkColors) {
+            const c1 = color<4?color:color-4;
+            const c2 = color>4?color:color+4;
+            const [start1, width1] = getMarkerPosition(c1);
+            const [start2, width2] = getMarkerPosition(c2);
+            const end1 = start1 + width1;
+            const end2 = start2 + width2;
+            drawMarker(0, start1);
+            if (start2>end1) {
+                drawMarker(end1, start2-end1);
+            }
+            drawMarker(end2, editorWindow.columns - end2);
+        } else {
+            const [cell, width] = getMarkerPosition(color);
+            drawMarker(0, cell);
+            drawMarker(cell + width, editorWindow.columns - width - cell);
+        }
     }
 }
 
@@ -1087,6 +1116,12 @@ const toggleOptions = () => {
     }
 }
 
+const toggleLink = () => {
+    options.linkColors = options.linkColors?0:1;
+    storeOptions();
+    updateScreen();
+}
+
 // *********************************** OPTIONS
 
 const valIntInput = (inputId) => {
@@ -1210,6 +1245,9 @@ const saveOptions = () => {
         updateOptions();
         clampOptions();
         updateOptions();
+        if (!isPlayer23Mode()) {
+            options.linkColors = 0;
+        };
         closeAllDialogs();
     }
     newCanvas();
@@ -1679,7 +1717,7 @@ const jumpToNextMovieFrame = () => {
     if (!movieLoop) {
         jumpToNextFrame();
         if (penDown) {
-            setColorOn(workspace.selectedFrame, currentCell.col, currentCell.row, currentCell.color);
+            drawPix(workspace.selectedFrame, currentCell.col, currentCell.row, currentCell.color);
         }
     } else {
         workspace.selectedFrame++;
@@ -2887,6 +2925,8 @@ $(document).ready(function () {
 
     $("#libSearch").on('mousedown', librarySearch)
     $("#libSearchReset").on('mousedown', libraryReset)
+    $("#colorLink").on('mousedown', toggleLink)
+
 
     loadWorkspace();
     loadLibrary();
