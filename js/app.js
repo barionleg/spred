@@ -25,8 +25,8 @@ const dliColorMap = ['back', 'c0', 'c1', null, null, 'c2', 'c3'];
 
 
 const defaultOptions = {
-    version: '1.0.6',
-    storageName: 'SprEdStore106',
+    version: '1.1.0',
+    storageName: 'SprEdStore110',
     undoLevels: 128,
     lineResolution: 1,
     spriteHeight: 16,
@@ -1032,6 +1032,11 @@ const drawTimeline = () => {
     });
 }
 
+const updateMovieCursor = () => {
+    $('.framebox').removeClass('currentFrame');
+    $('#fbox_' + workspace.selectedFrame).addClass('currentFrame');
+}
+
 const updateMenu = () => {
     $('.pairOnly').toggleClass('inactive', !isPlayer23Mode());
 }
@@ -1779,18 +1784,23 @@ const jumpToFrame = f => {
 }
 
 const jumpToNextMovieFrame = () => {
+    workspace.selectedFrame++;
     if (!movieLoop) {
-        jumpToNextFrame();
+        if (workspace.selectedFrame >= workspace.frames.length) {
+            workspace.selectedFrame = 0;
+        }
         if (penDown) {
             drawPix(workspace.selectedFrame, currentCell.col, currentCell.row, currentCell.color);
         }
     } else {
-        workspace.selectedFrame++;
         if (workspace.selectedFrame > movieLoop[1]) {
             workspace.selectedFrame = movieLoop[0];
         }
     }
-    updateScreen();
+    drawEditor();
+    updateColors();
+    updateLayers();
+    updateMovieCursor();
 }
 
 const jumpToNextFrame = () => {
@@ -1868,29 +1878,47 @@ const stopPlayer = () => {
 
 const cloneFrame = () => {
     if (animationOn) { return false };
-    const newframe = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
-    workspace.frames.splice(workspace.selectedFrame, 0, newframe);
-    jumpToFrame(workspace.selectedFrame + 1);
+    const [first, last] = (options.multiFrameEdit && movieLoop) ? movieLoop : [workspace.selectedFrame, workspace.selectedFrame];
+    const len = last - first + 1;
+    for (let f = first; f <= last; f++) {
+        const newframe = _.cloneDeep(workspace.frames[f]);
+        workspace.frames.splice(f + len, 0, newframe);
+    }
+    if (options.multiFrameEdit && movieLoop) {
+        movieLoop[0] += len;
+        movieLoop[1] += len;
+    }
+    jumpToFrame(workspace.selectedFrame + len);
     storeWorkspace();
     return true;
 }
 
 const animFrameLeft = () => {
     if (animationOn) { return false };
-    if (workspace.selectedFrame == 0) { return false }
-    const newframe = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
-    workspace.frames.splice(workspace.selectedFrame, 1);
-    workspace.frames.splice(workspace.selectedFrame - 1, 0, newframe);
+    const [first, last] = (options.multiFrameEdit && movieLoop) ? movieLoop : [workspace.selectedFrame, workspace.selectedFrame];
+    if (first == 0) { return false }
+    const frame = _.cloneDeep(workspace.frames[first - 1]);
+    workspace.frames.splice(first - 1, 1);
+    workspace.frames.splice(last, 0, frame);
+    if (options.multiFrameEdit && movieLoop) {
+        movieLoop[0]--;
+        movieLoop[1]--;
+    }
     jumpToFrame(workspace.selectedFrame - 1);
     storeWorkspace();
 }
 
 const animFrameRight = () => {
     if (animationOn) { return false };
-    if (workspace.selectedFrame == workspace.frames.length - 1) { return false }
-    const newframe = _.cloneDeep(workspace.frames[workspace.selectedFrame]);
-    workspace.frames.splice(workspace.selectedFrame, 1);
-    workspace.frames.splice(workspace.selectedFrame + 1, 0, newframe);
+    const [first, last] = (options.multiFrameEdit && movieLoop) ? movieLoop : [workspace.selectedFrame, workspace.selectedFrame];
+    if (last == workspace.frames.length - 1) { return false }
+    const frame = _.cloneDeep(workspace.frames[last + 1]);
+    workspace.frames.splice(last + 1, 1);
+    workspace.frames.splice(first, 0, frame);
+    if (options.multiFrameEdit && movieLoop) {
+        movieLoop[0]++;
+        movieLoop[1]++;
+    }
     jumpToFrame(workspace.selectedFrame + 1);
     storeWorkspace();
 }
@@ -2313,15 +2341,15 @@ const moveFrame = dir => {
     return true;
 }
 
-const moveFrameLeft = () => {
+const moveFrameContentsLeft = () => {
     return moveFrame(-1);
 }
 
-const moveFrameRight = () => {
+const moveFrameContentsRight = () => {
     return moveFrame(1)
 }
 
-const moveFrameUp = () => {
+const moveFrameContentsUp = () => {
     if (animationOn) { return false };
     const [rfirst, rlast] = (options.multiFrameEdit && movieLoop) ? movieLoop : [workspace.selectedFrame, workspace.selectedFrame];
     for (let f = rfirst; f <= rlast; f++) {
@@ -2364,7 +2392,7 @@ const moveFrameUp = () => {
     return true;
 }
 
-const moveFrameDown = () => {
+const moveFrameContentsDown = () => {
     if (animationOn) { return false };
     const [rfirst, rlast] = (options.multiFrameEdit && movieLoop) ? movieLoop : [workspace.selectedFrame, workspace.selectedFrame];
     for (let f = rfirst; f <= rlast; f++) {
@@ -2665,6 +2693,7 @@ const libraryLoad = item => {
     storeWorkspace();
     stopPlayer();
     newCanvas();
+    library.lastLoaded = toLoad._id ? toLoad._id : '';
     library.authorName = toLoad.authorName ? toLoad.authorName : '';
     library.spriteName = toLoad.spriteName ? toLoad.spriteName : '';
     library.description = toLoad.description ? toLoad.description : '';
@@ -2867,87 +2896,133 @@ const getSpriteByKeys = keys => {
         })
 }
 
-
-const postData = data => {
-    $('#lib_spinner').removeClass('none');
-    const preview = getFrameImage(0, 2, 2 / options.lineResolution);
-    var jsondata = _.assign({
-        "uploaderId": library.uploaderId,
-        "authorName": "",
-        "uploadDate": new Date().toISOString(),
-        "spriteName": "",
-        "description": "",
-        "spriteData": workspace,
-        "spriteOptions": options,
-        "frames": workspace.frames.length,
-        "spritePreview": preview[0].toDataURL()
-    }, data);
-    var settings = {
-        "async": true,
-        "crossDomain": true,
-        "url": "https://spred-c23d.restdb.io/rest/sprites",
-        "method": "POST",
-        "headers": {
-            "content-type": "application/json",
-            "x-apikey": "61ffef5b6a79155501021860",
-            "cache-control": "no-cache"
-        },
-        "processData": false,
-        "data": JSON.stringify(jsondata)
-    }
-
-    $.ajax(settings)
-        .done(function (response) {
-            libError('The file was successfully uploaded', '#5b5');
-            getLibraryData(0);
-        })
-        .fail(function (response) {
-
-            if (response.status == 400) {
-                console.log(response);
-                libError('A sprite with this name already exists.');
-                $('#lib_spinner').addClass('none');
-                return false;
+const updateItem = () => {
+    const updateDataHandler = blob => {
+        const reader = new window.FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = function () {
+            const preview = reader.result;
+            const jsondata = _.assign({
+                "spriteData": workspace,
+                "spriteOptions": options,
+                "frames": workspace.frames.length,
+                "spritePreview": preview
+            },library);
+            const settings = {
+                "async": true,
+                "crossDomain": true,
+                "url": `https://spred-c23d.restdb.io/rest/sprites/${library.lastLoaded}`,
+                "method": "PUT",
+                "headers": {
+                    "content-type": "application/json",
+                    "x-apikey": "61ffef5b6a79155501021860",
+                    "cache-control": "no-cache"
+                },
+                "processData": false,
+                "data": JSON.stringify(jsondata)
             }
-            libError('Unexpected error during upload.')
-            $('#lib_spinner').addClass('none');
-        });
+
+            $.ajax(settings)
+                .done(function (response) {
+                    libError('The file was successfully updated', '#5b5');
+                    getLibraryData(libraryPage);
+                })
+                .fail(function (response) {
+
+                    if (response.status == 400) {
+                        console.log(response);
+                        libError('Error!');
+                        $('#lib_spinner').addClass('none');
+                        return false;
+                    }
+                    libError('Unexpected error during upload.')
+                    $('#lib_spinner').addClass('none');
+                });
+        }
+    }
+    gifExporter(4, updateDataHandler);    
 }
 
-const exportGif = () => {
-    const gif = new GIF({
-        workerScript: "js/gif.worker.js",
-        workers: 2,
-        quality: 1,
-    });
+const postData = data => {
 
-    _.each(workspace.frames, (f,i) => {
-        const delayTime = (options.frameDelayMode == 1)?f.delayTime:options.animationSpeed;
-        gif.addFrame(getFrameImage(i, options.gifExportScale, options.gifExportScale / options.lineResolution)[0], { delay: delayTime*20 });
-    });
+    $('#lib_spinner').removeClass('none');
 
-    gif.on('finished', function (blob) {
-        let a = document.createElement("a") 
-        let blobURL = URL.createObjectURL(blob)
-        const name = prompt('set filename of saved file:', 'mysprite.gif');
-        a.download = name;
-        a.href = blobURL;
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        
-        var reader = new window.FileReader();
-        reader.readAsDataURL(blob); 
-        reader.onloadend = function() {
-          base64data = reader.result; 
-          //console.log(base64data);
+    const postDataHandler = blob => {
+        const reader = new window.FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = function () {
+            const preview = reader.result;
+            const jsondata = _.assign({
+                "uploaderId": library.uploaderId,
+                "authorName": "",
+                "uploadDate": new Date().toISOString(),
+                "spriteName": "",
+                "description": "",
+                "spriteData": workspace,
+                "spriteOptions": options,
+                "frames": workspace.frames.length,
+                "spritePreview": preview
+            }, data);
+            const settings = {
+                "async": true,
+                "crossDomain": true,
+                "url": "https://spred-c23d.restdb.io/rest/sprites",
+                "method": "POST",
+                "headers": {
+                    "content-type": "application/json",
+                    "x-apikey": "61ffef5b6a79155501021860",
+                    "cache-control": "no-cache"
+                },
+                "processData": false,
+                "data": JSON.stringify(jsondata)
+            }
+
+            $.ajax(settings)
+                .done(function (response) {
+                    libError('The file was successfully uploaded', '#5b5');
+                    getLibraryData(0);
+                })
+                .fail(function (response) {
+
+                    if (response.status == 400) {
+                        console.log(response);
+                        libError('A sprite with this name already exists.');
+                        $('#lib_spinner').addClass('none');
+                        return false;
+                    }
+                    libError('Unexpected error during upload.')
+                    $('#lib_spinner').addClass('none');
+                });
+
         }
+    }
+    gifExporter(4, postDataHandler);
+}
 
+const saveGifHandler = blob => {
+    let a = document.createElement("a")
+    let blobURL = URL.createObjectURL(blob)
+    const name = prompt('set filename of saved file:', 'mysprite.gif');
+    a.download = name;
+    a.href = blobURL;
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+}
+
+const gifExporter = (scale, handler) => {
+    const gif = new GIF({ workerScript: "js/gif.worker.js", quality: 1 });
+    _.each(workspace.frames, (f, i) => {
+        const delayTime = (options.frameDelayMode == 1) ? f.delayTime : options.animationSpeed;
+        gif.addFrame(getFrameImage(i, scale, scale / options.lineResolution)[0], { delay: delayTime * 20 });
     });
-
+    gif.on('finished', handler);
     gif.render();
 }
 
+const exportGif = () => {
+    gifExporter(options.gifExportScale, saveGifHandler);
+}
 
 // ************************************************  ON START INIT 
 
@@ -2981,10 +3056,10 @@ $(document).ready(function () {
     app.addMenuItem('Flip-H', saveUndo('flip h', flipHFrame), 'framemenu', 'Flips frame horizontally');
     app.addMenuItem('Flip-V', saveUndo('flip v', flipVFrame), 'framemenu', 'Flips frame vertically');
     app.addSeparator('framemenu');
-    app.addMenuItem('🡄', saveUndo('move left', moveFrameLeft), 'framemenu', 'Moves frame contents left');
-    app.addMenuItem('🡆', saveUndo('move right', moveFrameRight), 'framemenu', 'Moves frame contents right');
-    app.addMenuItem('🡅', saveUndo('move up', moveFrameUp), 'framemenu', 'Moves frame contents up');
-    app.addMenuItem('🡇', saveUndo('move down', moveFrameDown), 'framemenu', 'Moves frame contents down');
+    app.addMenuItem('🡄', saveUndo('move left', moveFrameContentsLeft), 'framemenu', 'Moves frame contents left');
+    app.addMenuItem('🡆', saveUndo('move right', moveFrameContentsRight), 'framemenu', 'Moves frame contents right');
+    app.addMenuItem('🡅', saveUndo('move up', moveFrameContentsUp), 'framemenu', 'Moves frame contents up');
+    app.addMenuItem('🡇', saveUndo('move down', moveFrameContentsDown), 'framemenu', 'Moves frame contents down');
     app.addSeparator('framemenu');
     app.addMenuItem('≡+', saveUndo('double lines', heightUp), 'framemenu', 'Expand by doubling lines');
     app.addMenuItem('≡−', saveUndo('tighten', heightDown), 'framemenu', 'Remove every second line');
