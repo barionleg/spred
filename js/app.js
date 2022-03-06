@@ -23,6 +23,7 @@ const zoomCellSize = [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
 const dliMap = ['back', 'c0', 'c1', 'c2', 'c3'];
 const dliColorMap = ['back', 'c0', 'c1', null, null, 'c2', 'c3'];
 
+const restDBKey = "6225278734fd621565858bd2";
 
 const defaultOptions = {
     version: '1.1.0',
@@ -2846,7 +2847,7 @@ const getLibraryData = page => {
         "method": "GET",
         "headers": {
             "content-type": "application/json",
-            "x-apikey": "61ffef5b6a79155501021860",
+            "x-apikey": restDBKey,
             "cache-control": "no-cache"
         }
     }
@@ -2870,14 +2871,14 @@ const getSpriteByKeys = keys => {
     //$('#lib_spinner').removeClass('none');
     //const skip = LIBRARY_SPR_PER_PAGE * page;
 
-    var settings = {
+    const settings = {
         "async": false,
         "crossDomain": true,
         "url": `https://spred-c23d.restdb.io/rest/sprites?q=${JSON.stringify(keys)}`,
         "method": "GET",
         "headers": {
             "content-type": "application/json",
-            "x-apikey": "61ffef5b6a79155501021860",
+            "x-apikey": restDBKey,
             "cache-control": "no-cache"
         }
     }
@@ -2915,7 +2916,7 @@ const updateItem = () => {
                 "method": "PUT",
                 "headers": {
                     "content-type": "application/json",
-                    "x-apikey": "61ffef5b6a79155501021860",
+                    "x-apikey": restDBKey,
                     "cache-control": "no-cache"
                 },
                 "processData": false,
@@ -2940,7 +2941,7 @@ const updateItem = () => {
                 });
         }
     }
-    gifExporter(4, updateDataHandler);    
+    gifExporter(2, updateDataHandler);    
 }
 
 const postData = data => {
@@ -2970,13 +2971,12 @@ const postData = data => {
                 "method": "POST",
                 "headers": {
                     "content-type": "application/json",
-                    "x-apikey": "61ffef5b6a79155501021860",
+                    "x-apikey": restDBKey,
                     "cache-control": "no-cache"
                 },
                 "processData": false,
                 "data": JSON.stringify(jsondata)
             }
-
             $.ajax(settings)
                 .done(function (response) {
                     libError('The file was successfully uploaded', '#5b5');
@@ -2996,7 +2996,7 @@ const postData = data => {
 
         }
     }
-    gifExporter(4, postDataHandler);
+    gifExporter(2, postDataHandler);
 }
 
 const saveGifHandler = blob => {
@@ -3011,7 +3011,7 @@ const saveGifHandler = blob => {
 }
 
 const gifExporter = (scale, handler) => {
-    const gif = new GIF({ workerScript: "js/gif.worker.js", quality: 1 });
+    const gif = new GIF({ workerScript: "js/gif.worker.js", quality: 10 });
     _.each(workspace.frames, (f, i) => {
         const delayTime = (options.frameDelayMode == 1) ? f.delayTime : options.animationSpeed;
         gif.addFrame(getFrameImage(i, scale, scale / options.lineResolution)[0], { delay: delayTime * 20 });
