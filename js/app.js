@@ -2659,6 +2659,7 @@ const libraryLoad = item => {
         options[opt] = toLoad.spriteOptions[opt] !== undefined ? toLoad.spriteOptions[opt] : defaultOptions[opt];
     }
     storeOptions();
+    workspace.backgroundColor = toLoad.spriteData.backgroundColor;
     workspace.frames = _.cloneDeep(toLoad.spriteData.frames);
     fixWorkspace();
     storeWorkspace();
@@ -2930,10 +2931,18 @@ const exportGif = () => {
         let blobURL = URL.createObjectURL(blob)
         const name = prompt('set filename of saved file:', 'mysprite.gif');
         a.download = name;
-        a.href = blobURL
+        a.href = blobURL;
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
+        
+        var reader = new window.FileReader();
+        reader.readAsDataURL(blob); 
+        reader.onloadend = function() {
+          base64data = reader.result; 
+          //console.log(base64data);
+        }
+
     });
 
     gif.render();
