@@ -9,7 +9,7 @@ const exportTemplates = [
             prefix23: '; SPRITE DATA\n; frames, height, gap0_1, gap2_3, pair_gap\n  dta #frames#,#height#,#gap01#,#gap23#,#pairgap#\n\n', postfix: ''
         },
         colors: {
-            prefix: '; SPRITE COLORS #s#\n', postfix: ''
+            prefix: '; SPRITE COLORS #s#\n#lp#COL_#s#\n', postfix: ''
         },
         sprite: {
             prefix: '\n; SPRITE #s#\n', postfix: ''
@@ -21,7 +21,7 @@ const exportTemplates = [
             prefix: '\n; DLI #d#\n', postfix: ''
         },
         frame: {
-            prefix: '; FRAME #f#\n', postfix: ''
+            prefix: '; FRAME #f#\n#lp#SPR_#s#_FRM_#f#\n', postfix: ''
         },
         frameDelays: {
             prefix: '\n; DELAY TIMES \n', postfix: ''
@@ -35,16 +35,15 @@ const exportTemplates = [
             binPrefix: '%', hexPrefix: '$', addrPrefix: 'a(', addrPostfix: ')'
         }
     },    
-
-
+    
     {
-        name:'Other Assemblers',
+        name:'MADS Assembler (.he notation)',
         block: {
-            prefix: '; SPRITE DATA\n; frames, height, gap\n  .BYTE #frames#,#height#,#gap01#\n\n',
-            prefix23: '; SPRITE DATA\n; frames, height, gap0_1, gap2_3, pair_gap\n  .BYTE #frames#,#height#,#gap01#,#gap23#,#pairgap#\n\n', postfix: ''
+            prefix: '; SPRITE DATA\n; frames, height, gap\n  .he #frames# #height# #gap01#\n\n',
+            prefix23: '; SPRITE DATA\n; frames, height, gap0_1, gap2_3, pair_gap\n  .he #frames# #height# #gap01# #gap23# #pairgap#\n\n', postfix: ''
         },
         colors: {
-            prefix: '; SPRITE COLORS #s#\n', postfix: ''
+            prefix: '; SPRITE COLORS #s#\n#lp#COL_#s#\n', postfix: ''
         },
         sprite: {
             prefix: '\n; SPRITE #s#\n', postfix: ''
@@ -56,7 +55,42 @@ const exportTemplates = [
             prefix: '\n; DLI #d#\n', postfix: ''
         },
         frame: {
-            prefix: '; FRAME #f#\n', postfix: ''
+            prefix: '; FRAME #f#\n#lp#SPR_#s#_FRM_#f#\n', postfix: ''
+        },
+        frameDelays: {
+            prefix: '\n; DELAY TIMES \n', postfix: ''
+        },
+        line: {
+            numbers: false,
+            prefix: '  .he ', postfix: '\n'
+        },
+        byte: {
+            separator: ' ',
+            binPrefix: '', hexPrefix: '', addrPrefix: 'a(', addrPostfix: ')',
+            forceNumeric: 'HEX'
+        }
+    },      
+
+    {
+        name:'Other Assemblers',
+        block: {
+            prefix: '; SPRITE DATA\n; frames, height, gap\n  .BYTE #frames#,#height#,#gap01#\n\n',
+            prefix23: '; SPRITE DATA\n; frames, height, gap0_1, gap2_3, pair_gap\n  .BYTE #frames#,#height#,#gap01#,#gap23#,#pairgap#\n\n', postfix: ''
+        },
+        colors: {
+            prefix: '; SPRITE COLORS #s#\n#lp#COL_#s#\n', postfix: ''
+        },
+        sprite: {
+            prefix: '\n; SPRITE #s#\n', postfix: ''
+        },
+        missiles: {
+            prefix: '\n; MISSILES \n', postfix: ''
+        },
+        dli: {
+            prefix: '\n; DLI #d#\n', postfix: ''
+        },
+        frame: {
+            prefix: '; FRAME #f#\n#lp#SPR_#s#_FRM_#f#\n', postfix: ''
         },
         frameDelays: {
             prefix: '\n; DELAY TIMES \n', postfix: ''
@@ -113,7 +147,7 @@ const exportTemplates = [
             postfix: ''
         },
         colors: {
-            prefix: "  colors#s#: array [0..#maxframes#] of byte = (\n", postfix: "  );\n"
+            prefix: "  #lp#colors#s#: array [0..#maxframes#] of byte = (\n", postfix: "  );\n"
         },
         sprite: {
             prefix: '\n// sprite #s# data\n', postfix: ''
@@ -125,7 +159,7 @@ const exportTemplates = [
             prefix: '\n// dli #d#\n', postfix: ''
         },
         frame: {
-            prefix: "  frames#d##s#_#f#: array [0..#maxheight#] of byte = (\n", postfix: "  );\n"
+            prefix: "  #lp#frames#d##s#_#f#: array [0..#maxheight#] of byte = (\n", postfix: "  );\n"
         },
         frameDelays: {
             prefix: '\n// delay Times\n', postfix: ''
@@ -146,7 +180,7 @@ const exportTemplates = [
             postfix: ''
         },
         colors: {
-            prefix: "BYTE ARRAY COLORS#s# =[\n", postfix: "]\n"
+            prefix: "BYTE ARRAY #lp#COLORS#s# =[\n", postfix: "]\n"
         },
         sprite: {
             prefix: "\n; sprite #s#\n", postfix: ''
@@ -158,7 +192,7 @@ const exportTemplates = [
             prefix: '\n; dli #d#\n', postfix: ''
         },
         frame: {
-            prefix: "BYTE ARRAY FRAMES#d##s#_#f# =[\n", postfix: "]\n"
+            prefix: "BYTE ARRAY #lp#FRAMES#d##s#_#f# =[\n", postfix: "]\n"
         },
         frameDelays: {
             prefix: '\n; delay times\n', postfix: ''
@@ -179,7 +213,7 @@ const exportTemplates = [
             postfix: ''
         },
         colors: {
-            prefix: "unsigned char frames#s#_#f#[#height#] = {\n", postfix: "};"
+            prefix: "unsigned char #lp#colors#s#_#f#[#height#] = {\n", postfix: "};"
         },
         sprite: {
             prefix: "\n\n//sprite #s#\n", postfix: ''
@@ -191,7 +225,7 @@ const exportTemplates = [
             prefix: '\n\n//dli #d#\n', postfix: ''
         },
         frame: {
-            prefix: "unsigned char frames#d##s#_#f#[#height#] = {\n", postfix: "};\n"
+            prefix: "unsigned char #lp#frames#d##s#_#f#[#height#] = {\n", postfix: "};\n"
         },
         frameDelays: {
             prefix: '\n\n//delay times\n', postfix: ''
@@ -212,7 +246,7 @@ const exportTemplates = [
             postfix: ''
         },
         colors: {
-            prefix: "data colors#s#()", postfix: ""
+            prefix: "data #lp#colors#s#()", postfix: ""
         },
         sprite: {
             prefix: "\n'sprite #s#\n", postfix: ''
@@ -224,7 +258,7 @@ const exportTemplates = [
             prefix: "\n'dli #d#\n", postfix: ''
         },
         frame: {
-            prefix: "data frame#d##s#_#f#()", postfix: ""
+            prefix: "data #lp#frame#d##s#_#f#()", postfix: ""
         },
         frameDelays: {
             prefix: "\n'delay times\n", postfix: ''

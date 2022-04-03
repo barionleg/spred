@@ -22,7 +22,7 @@
         <div id='dli_box'></div>
         <div id='color_box'>
           <div class='color_link' id='colorLink' title="Link Colors"><img id='linkImg' src="img/link.png"></div>
-          <div class='colorbox' id='color0'>BACKGROUND</div>
+          <div class='colorbox' id='color0'>BACKGND</div>
           <div class='p01only layer'>
             <div id='layer01' class='layer_switch'>👁</div>
             <div class='colorbox colorboxNarrow' id='color1'>C0</div>
@@ -266,6 +266,28 @@
               <input type='checkbox' id='opt_drawOnPlay_b' />Draw on Animation</label>
           </fieldset>
 
+          <hr>
+
+
+          <h3>Background settings:</h3>
+          <fieldset>
+            <label class='dialog_label'>Horizontal offset:</label>
+            <input type='text' id='opt_backOffsetH_i' class='dialog_text_input input_narrow'>
+          </fieldset>
+
+          <fieldset>
+            <label class='dialog_label'>Vertical offset:</label>
+            <input type='text' id='opt_backOffsetV_i' class='dialog_text_input input_narrow'>
+          </fieldset>
+
+          <fieldset>
+            <label class='dialog_label'>Force image width:</label>
+            <input type='text' id='opt_backImageWidth_i' class='dialog_text_input input_narrow'>
+            0 = auto detect
+          </fieldset>
+
+          
+
         </div>
 
         <div class='dialog_block'>
@@ -330,9 +352,15 @@
           </fieldset>
 
           <fieldset>
+            <label class='dialog_label'>Label prefix:</label>
+            <input type='text' id='opt_labelPrefix_s' class='dialog_text_input input_medsize'>
+          </fieldset>
+
+          <fieldset>
             <label class='dialog_label'>Starting Line Number:</label>
             <input type='text' id='opt_startingLine_i' class='dialog_text_input input_narrow'>
           </fieldset>
+
           <fieldset>
             <label class='dialog_label'>Step:</label>
             <input type='text' id='opt_lineStep_i' class='dialog_text_input input_narrow'>

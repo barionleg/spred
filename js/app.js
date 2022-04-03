@@ -57,7 +57,11 @@ const defaultOptions = {
     gifExportScale: 4,
     libSearchQuery: '',
     libSearchSort: 'uploadDate',
-    libSearchDir: 'desc'
+    libSearchDir: 'desc',
+    labelPrefix: '',
+    backOffsetH: 0,
+    backOffsetV: 0,
+    backImageWidth: 0
 }
 
 const sortBy = {
@@ -709,6 +713,12 @@ const pickerClicked = (e) => {
     showPalette(c);
 }
 
+const imgPickerClicked = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    //console.log('loadImg');
+}
+
 const updateLayers = () => {
     $('.layer').removeClass('layer_hidden');
     if (isPlayer23Mode()) {
@@ -1237,6 +1247,9 @@ const validateOptions = () => {
     if (!valIntInput('startingLine')) return false;
     if (!valIntInput('cellSize')) return false;
     if (!valIntInput('gifExportScale')) return false;
+    if (!valIntInput('backOffsetH')) return false;
+    if (!valIntInput('backOffsetV')) return false;
+    if (!valIntInput('backImageWidth')) return false;
     if (getCheckBox('dliOn') && getCheckBox('commonPalette')) {
         alert('Cannot use DLI with common palette!');
         setCheckBox('dliOn', false);
@@ -1254,6 +1267,10 @@ const clampOptions = () => {
     clampOption('animationSpeed', 1, 100);
     clampOption('cellSize', 0, zoomCellSize.length - 1);
     clampOption('gifExportScale', 1, 32);
+    clampOption('backOffsetH', 0, 4);
+    clampOption('backOffsetV', 0, 4);
+    clampOption('backImageWidth', 0, 40);
+
 }
 
 const storeOptions = () => {
@@ -1416,7 +1433,7 @@ const parseTemplate = (template) => {
 
     const getBlock = (block, blockTemp) => {
         let blockLines = `${blockTemp.prefix}${block}${blockTemp.postfix}`;
-        blockLines = blockLines.replace(/#f#/g, tframe).replace(/#s#/g, tsprite).replace(/#d#/g, tdli.toUpperCase());
+        blockLines = blockLines.replace(/#f#/g, tframe).replace(/#s#/g, tsprite).replace(/#d#/g, tdli.toUpperCase()).replace(/#lp#/g, options.labelPrefix);
         //lineCount+= blockLines.split(/\r\n|\r|\n/).length + 1;
         return blockLines
     }
@@ -1488,6 +1505,7 @@ const parseTemplate = (template) => {
 
     const pushMissileData = () => {
         let missiles = '';
+        tsprite = 'MIS';
         _.each(workspace.frames, (frame, f) => {
             const merged = new Array(options.spriteHeight).fill(0);
             lines = '';
@@ -1605,9 +1623,27 @@ const openFile = function (event) {
     closeLibrary();
 };
 
-const parseBinary = (binData) => {
+const openBackgroundFile = function (event) {
+    var input = event.target;
+    var file = input.files[0];
+    loadBackground(file);
+    $("#fdialogx").blur();
+    updateScreen();
+};
 
-    const parseError = msg => { alert(msg); }
+const parseError = msg => { alert(msg); }
+
+const parseBackImage = (binData) => {
+
+    const binSize = binData.length;
+    const colorPtr = binSize-5;
+    return {
+        data: Array.from(binData),
+        colors: Array.from(binData.subarray(colorPtr,colorPtr+4))
+    }
+}
+
+const parseBinary = (binData) => {
 
     const areEqual = (a1, a2) => {
         if (a1.length != a2.length) {
@@ -1744,6 +1780,24 @@ const parseBinary = (binData) => {
     } else {
         parseError('unknown format!')
         return false;
+    }
+}
+
+const loadBackground = function (file) {
+    if (file) {
+        var reader = new FileReader();
+        reader.onload = function () {
+            var arrayBuffer = reader.result;
+            if (file.size > MAX_FILESIZE) {
+                alert(`ERROR!!!\n\nFile size limit exceeded. Size: ${file.size} B - limit: ${MAX_FILESIZE} kB`);
+                return false;
+            }
+            const binFileName = file.name;
+            const binFileData = new Uint8Array(arrayBuffer);
+            workspace.backgroundImage = parseBackImage(binFileData);
+            file.name = '';
+        };
+        reader.readAsArrayBuffer(file);
     }
 }
 
@@ -2681,7 +2735,8 @@ const libraryLoad = item => {
         'palette',
         'mergeMode',
         'dliOn',
-        'frameDelayMode'
+        'frameDelayMode',
+        'commonPalette'
     ];
     const toLoad = libraryContents.data[item];
     for (let opt of optToLoad) {
@@ -3101,6 +3156,12 @@ $(document).ready(function () {
             .bind('mousedown', pickerClicked);
         $(`#color${c}`).append(picker);
     }
+    const backImage = $("<label/>");
+    backImage.attr('id', `back_img_pick`)
+        .addClass('picker imgpicker')
+        .bind('mousedown', imgPickerClicked);
+    $(`#color0`).append(backImage);
+
     $('.layer_switch').bind('mousedown', layerSwitchClicked);
     $('#upload').bind('mousedown', libraryUpload);
 
@@ -3111,6 +3172,13 @@ $(document).ready(function () {
     $("#libSearch").on('mousedown', librarySearch)
     $("#libSearchReset").on('mousedown', libraryReset)
     $("#colorLink").on('mousedown', toggleLink)
+
+
+    const inp = $(`<input type='file' id='fdialogx' class='fileinput' onclick='this.value=null'>`);
+    //inp.attr('accept','.mic,.raw')
+    $('#back_img_pick').attr('for', `fdialogx`).attr('title', 'Load background image');
+    inp.change(openBackgroundFile);
+    $(`#color0`).append(inp);
 
 
     loadWorkspace();

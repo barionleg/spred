@@ -229,6 +229,10 @@ width: 240px;
     width: 50px;
 }
 
+.input_medsize {
+  width: 100px;
+}
+
 hr {
     border-bottom: 1px dotted #787;
     width:100%;
@@ -366,6 +370,12 @@ ul.dli_row>li {
   top: 4px;
   background-image: url(../img/palette3.png);
   background-size: cover;
+}
+
+.imgpicker {
+  right:28px;
+  background-image: url(../img/picture.png);
+  background-color: #aaa;
 }
 
 .colorSelected {
