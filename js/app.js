@@ -26,8 +26,8 @@ const dliColorMap = ['back', 'c0', 'c1', null, null, 'c2', 'c3'];
 const restDBKey = "6225278734fd621565858bd2";
 
 const defaultOptions = {
-    version: '1.1.2',
-    storageName: 'SprEdStore112',
+    version: '1.1.4',
+    storageName: 'SprEdStore114',
     undoLevels: 128,
     lineResolution: 1,
     spriteHeight: 16,
@@ -61,6 +61,7 @@ const defaultOptions = {
     labelPrefix: '',
     backOffsetH: 0,
     backOffsetV: 0,
+    backOffset: 0,
     backImageWidth: 0,
     showBackground: false
 }
@@ -299,6 +300,9 @@ const redo = () => {
 // *********************************** COLOR OPERATIONS
 
 const getColors = (frame, row) => {
+    if (options.commonPalette) {
+        frame = 0;
+    }
     let colors = [
         workspace.backgroundColor,
         workspace.frames[frame].colors[0],
@@ -309,9 +313,6 @@ const getColors = (frame, row) => {
         workspace.frames[frame].colors[3],
         workspace.frames[frame].colors[2] | workspace.frames[frame].colors[3]
     ];
-    if (options.commonPalette) {
-        frame = 0;
-    }
     if (options.dliOn) {
         row = row - options.backOffsetV;
         if ((row>=0) && (row<options.spriteHeight)) {
@@ -546,7 +547,7 @@ const getBackRGB = (col, row) => {
 }
 
 const getRGBOn = (frame, col, row) => {
-    let c = getColorOn(frame, col, row)
+    let c = getColorOn(frame, col, row);
     if ((c == 0) && options.showBackground) {
         return getBackRGB(col, row)
     }
@@ -1006,7 +1007,7 @@ const newCanvas = () => {
 
 const getFrameImage = (frame, scalex, scaley) => {
     scalex *= getWidthMultiplier();
-    const w = Math.floor((editorWindow.columns) * scalex);
+    const w = Math.floor(editorWindow.columns * scalex);
     const h = Math.floor(editorWindow.rows * scaley);
     const cnv = $('<canvas/>')
         .addClass('framepreview')
@@ -1020,7 +1021,7 @@ const getFrameImage = (frame, scalex, scaley) => {
         for (let col = 0; col < editorWindow.columns; col++) {
             const crgb = getRGBOn(frame, col, row);
             ctx.fillStyle = crgb;
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 0;
             ctx.fillRect(Math.ceil(col * scalex), row * scaley, Math.ceil(scalex), Math.ceil(scaley));
         }
     }
@@ -1300,6 +1301,7 @@ const validateOptions = () => {
     if (!valIntInput('gifExportScale')) return false;
     if (!valIntInput('backOffsetH')) return false;
     if (!valIntInput('backOffsetV')) return false;
+    if (!valIntInput('backOffset')) return false;
     if (!valIntInput('backImageWidth')) return false;
     if (getCheckBox('dliOn') && getCheckBox('commonPalette')) {
         alert('Cannot use DLI with common palette!');
@@ -1320,6 +1322,7 @@ const clampOptions = () => {
     clampOption('gifExportScale', 1, 32);
     clampOption('backOffsetH', 0, 4);
     clampOption('backOffsetV', 0, 4);
+    clampOption('backOffset', 0, 64 * 1024);
     clampOption('backImageWidth', 0, 40);
 
 }
@@ -3083,11 +3086,18 @@ const postData = data => {
                 "uploadDate": new Date().toISOString(),
                 "spriteName": "",
                 "description": "",
-                "spriteData": workspace,
+                "spriteData": _.cloneDeep(workspace),
                 "spriteOptions": options,
                 "frames": workspace.frames.length,
                 "spritePreview": preview
             }, data);
+            if (jsondata.spriteData.backgroundImage) {
+                delete(jsondata.spriteData.backgroundImage);
+            }
+            if (jsondata.spriteData.clipBoard) {
+                delete(jsondata.spriteData.clipBoard);
+            }
+            
             const settings = {
                 "async": true,
                 "crossDomain": true,
