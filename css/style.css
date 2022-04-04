@@ -286,6 +286,10 @@ ul.dli_row {
   overflow: hidden;
 }
 
+.spacer {
+  background-color: black;
+}
+
 ul.dli_row>li {
   list-style: none;
   display: block;

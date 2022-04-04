@@ -26,8 +26,8 @@ const dliColorMap = ['back', 'c0', 'c1', null, null, 'c2', 'c3'];
 const restDBKey = "6225278734fd621565858bd2";
 
 const defaultOptions = {
-    version: '1.1.0',
-    storageName: 'SprEdStore110',
+    version: '1.1.2',
+    storageName: 'SprEdStore112',
     undoLevels: 128,
     lineResolution: 1,
     spriteHeight: 16,
@@ -61,7 +61,8 @@ const defaultOptions = {
     labelPrefix: '',
     backOffsetH: 0,
     backOffsetV: 0,
-    backImageWidth: 0
+    backImageWidth: 0,
+    showBackground: false
 }
 
 const sortBy = {
@@ -158,7 +159,6 @@ const isPlayerActive = p => {
     if ((p > 1) && !layer23visible) { return false };
     return true;
 }
-
 
 function decimalToHex(d, padding) {
     let hex = Number(d).toString(16);
@@ -299,33 +299,36 @@ const redo = () => {
 // *********************************** COLOR OPERATIONS
 
 const getColors = (frame, row) => {
+    let colors = [
+        workspace.backgroundColor,
+        workspace.frames[frame].colors[0],
+        workspace.frames[frame].colors[1],
+        workspace.frames[frame].colors[0] | workspace.frames[frame].colors[1],
+        0,
+        workspace.frames[frame].colors[2],
+        workspace.frames[frame].colors[3],
+        workspace.frames[frame].colors[2] | workspace.frames[frame].colors[3]
+    ];
     if (options.commonPalette) {
         frame = 0;
     }
     if (options.dliOn) {
-        const dli = workspace.frames[frame].dli;
-        return [
-            dli.back[row],
-            dli.c0[row],
-            dli.c1[row],
-            dli.c0[row] | dli.c1[row],
-            0,
-            dli.c2[row],
-            dli.c3[row],
-            dli.c2[row] | dli.c3[row]
-        ];
-    } else {
-        return [
-            workspace.backgroundColor,
-            workspace.frames[frame].colors[0],
-            workspace.frames[frame].colors[1],
-            workspace.frames[frame].colors[0] | workspace.frames[frame].colors[1],
-            0,
-            workspace.frames[frame].colors[2],
-            workspace.frames[frame].colors[3],
-            workspace.frames[frame].colors[2] | workspace.frames[frame].colors[3]
-        ];
-    }
+        row = row - options.backOffsetV;
+        if ((row>=0) && (row<options.spriteHeight)) {
+            const dli = workspace.frames[frame].dli;
+            colors = [
+                dli.back[row],
+                dli.c0[row],
+                dli.c1[row],
+                dli.c0[row] | dli.c1[row],
+                0,
+                dli.c2[row],
+                dli.c3[row],
+                dli.c2[row] | dli.c3[row]
+            ];
+        }
+    } 
+    return colors
 }
 
 const isColorActive = c => {
@@ -337,7 +340,7 @@ const isColorActive = c => {
 
 const updateColors = colors => {
     if (colors == undefined) {
-        colors = getColors(workspace.selectedFrame, workspace.selectedDli);
+        colors = getColors(workspace.selectedFrame, workspace.selectedDli + options.backOffsetV);
     }
     for (let i = 0; i < 8; i++) {
         $(`#color${i}`)
@@ -384,7 +387,7 @@ const updateColors = colors => {
 }
 
 const fakeNewColor = (color, cval) => {
-    const fakeColors = getColors(workspace.selectedFrame, workspace.selectedDli);
+    const fakeColors = getColors(workspace.selectedFrame, workspace.selectedDli + options.backOffsetV);
     fakeColors[color] = cval;
     fakeColors[3] = fakeColors[1] | fakeColors[2];
     fakeColors[7] = fakeColors[5] | fakeColors[6];
@@ -505,34 +508,49 @@ const getMasks = col => {
 }
 
 const getColorOn = (frame, col, row) => {
-    let c0, c1, c2, c3;
-    const b0 = workspace.frames[frame].player[0][row];
-    const b1 = workspace.frames[frame].player[1][row];
-    const bm0 = workspace.frames[frame].missile[0][row];
-    const bm1 = workspace.frames[frame].missile[1][row];
-    const b2 = workspace.frames[frame].player[2][row];
-    const b3 = workspace.frames[frame].player[3][row];
-    const bm2 = workspace.frames[frame].missile[2][row];
-    const bm3 = workspace.frames[frame].missile[3][row];
-    const [mp0, mp1, mm0, mm1, mp2, mp3, mm2, mm3] = getMasks(col);
-    c0 = (b0 & mp0) || (bm0 & mm0) ? 1 : 0;
-    c1 = (b1 & mp1) || (bm1 & mm1) ? 2 : 0;
-    c01 = c0 | c1;
-    c2 = (b2 & mp2) || (bm2 & mm2) ? 5 : 0;
-    c3 = (b3 & mp3) || (bm3 & mm3) ? 6 : 0;
-    c23 = c2 | c3;
-    let c = 0;
-    if (isPlayer23Mode() && layer23visible) {
-        if (c == 0) { c = c23 }
+    row = row-options.backOffsetV;
+    col = col-options.backOffsetH;
+    if (onActiveArea({row,col})) {
+        let c0, c1, c2, c3;
+        const b0 = workspace.frames[frame].player[0][row];
+        const b1 = workspace.frames[frame].player[1][row];
+        const bm0 = workspace.frames[frame].missile[0][row];
+        const bm1 = workspace.frames[frame].missile[1][row];
+        const b2 = workspace.frames[frame].player[2][row];
+        const b3 = workspace.frames[frame].player[3][row];
+        const bm2 = workspace.frames[frame].missile[2][row];
+        const bm3 = workspace.frames[frame].missile[3][row];
+        const [mp0, mp1, mm0, mm1, mp2, mp3, mm2, mm3] = getMasks(col);
+        c0 = (b0 & mp0) || (bm0 & mm0) ? 1 : 0;
+        c1 = (b1 & mp1) || (bm1 & mm1) ? 2 : 0;
+        c01 = c0 | c1;
+        c2 = (b2 & mp2) || (bm2 & mm2) ? 5 : 0;
+        c3 = (b3 & mp3) || (bm3 & mm3) ? 6 : 0;
+        c23 = c2 | c3;
+        let c = 0;
+        if (isPlayer23Mode() && layer23visible) {
+            if (c == 0) { c = c23 }
+        }
+        if (layer01visible) {  // ***************** p01 has higher priority
+            c = c01 ? c01 : c;
+        };
+        return c
     }
-    if (layer01visible) {  // ***************** p01 has higher priority
-        c = c01 ? c01 : c;
-    };
-    return c
+    return 0;    
+}
+const getBackRGB = (col, row) => {
+    const backWidth = 4 * (options.backImageWidth?options.backImageWidth:Math.ceil(editorWindow.columns / 4));
+    const backOffset = row*backWidth + col;
+    const color = workspace.backgroundImage[backOffset]?workspace.backgroundImage[backOffset]:0;
+    return getByteRGB(color);
 }
 
 const getRGBOn = (frame, col, row) => {
-    return getColorRGB(frame, getColorOn(frame, col, row), row);
+    let c = getColorOn(frame, col, row)
+    if ((c == 0) && options.showBackground) {
+        return getBackRGB(col, row)
+    }
+    return getColorRGB(frame, c, row);
 }
 
 const drawPix = (frame, col, row, color) => {
@@ -625,7 +643,9 @@ const setColorOn = (frame, col, row, color) => {
         c = c01 ? c01 : c;
     }
 
-    drawBlock(col, row, getColorRGB(workspace.selectedFrame, c, row));
+    const rgb = ((c == 0) && options.showBackground) ? getBackRGB(col+options.backOffsetH, row+options.backOffsetV) : getColorRGB(workspace.selectedFrame, c, row);
+    
+    drawBlock(col+options.backOffsetH, row+options.backOffsetV, rgb);
 }
 
 const setNewColor = (c, cval) => {
@@ -665,6 +685,9 @@ const colorCellClicked = e => {
     const cval = Number(_.last(_.split(e.target.id, '_')));
     const c = Number(_.last($(e.target).parent()[0].id));
     setNewColor(c, cval);
+    if (c==0) {
+        options.showBackground = false;
+    }
     updateScreen();
     closePalette();
 }
@@ -684,7 +707,7 @@ const showPalette = c => {
             .attr('id', `pal${c}`)
             .addClass('palette');
         let cval = 0;
-        const colors = getColors(workspace.selectedFrame, workspace.selectedDli);
+        const colors = getColors(workspace.selectedFrame, workspace.selectedDli + options.backOffsetV);
 
         while (cval < 256) {
             const rgb = getByteRGB(cval);
@@ -714,9 +737,14 @@ const pickerClicked = (e) => {
 }
 
 const imgPickerClicked = e => {
-    e.preventDefault();
-    e.stopPropagation();
-    //console.log('loadImg');
+    if ((workspace.backgroundImage) && (!options.showBackground)) {
+        options.showBackground = true;
+        updateScreen();
+        return false;
+    }
+    options.showBackground = true;
+    $('#fdialogx').trigger('click');
+    colorClicked(0);
 }
 
 const updateLayers = () => {
@@ -754,6 +782,9 @@ const layerSwitchClicked = e => {
 // *********************************** EDITOR OPERATIONS
 
 const sameCell = (c, n) => {
+    if (!c || !n) {
+        return false
+    }
     if (c.row == undefined) {
         return false;
     }
@@ -766,13 +797,21 @@ const sameCell = (c, n) => {
     return true;
 }
 
+const onActiveArea = cell => {
+    if (cell.col < 0) return false
+    if (cell.col >= editorWindow.columns) return false
+    if (cell.row < 0) return false
+    if (cell.row >= editorWindow.rows) return false
+    return true;
+}
+
 const locateCell = (event) => {
     const cell = {};
     const x = event.offsetX;
     const y = event.offsetY;
-    cell.row = Math.floor(y / editorWindow.cyoffset);
-    cell.col = Math.floor(x / editorWindow.cxoffset);
-    return cell;
+    cell.row = Math.floor(y / editorWindow.cyoffset) - options.backOffsetV;
+    cell.col = Math.floor(x / editorWindow.cxoffset) - options.backOffsetH;
+    return onActiveArea(cell)?cell:null;
 }
 
 const onCanvasMove = (event) => {
@@ -787,19 +826,21 @@ const onCanvasMove = (event) => {
 
 const clickOnCanvas = (event) => {
     if (animationOn && !options.drawOnPlay) { return false };
-    penDown = true;
-    let color = workspace.selectedColor;
-    if (event.buttons == 2) { // right button
-        color = 0;
-    }
     currentCell = locateCell(event);
-    currentCell.color = color;
-    const [first, last] = (options.multiFrameEdit && movieLoop) ? movieLoop : [workspace.selectedFrame, workspace.selectedFrame];
-    for (let f = first; f <= last; f++) {
-        drawPix(f, currentCell.col, currentCell.row, currentCell.color);
-    }
-    if (last != first) {
-        drawTimeline();
+    if (currentCell) {
+        penDown = true;
+        let color = workspace.selectedColor;
+        if (event.buttons == 2) { // right button
+            color = 0;
+        }
+        currentCell.color = color;
+        const [first, last] = (options.multiFrameEdit && movieLoop) ? movieLoop : [workspace.selectedFrame, workspace.selectedFrame];
+        for (let f = first; f <= last; f++) {
+            drawPix(f, currentCell.col, currentCell.row, currentCell.color);
+        }
+        if (last != first) {
+            drawTimeline();
+        }
     }
 }
 
@@ -867,7 +908,7 @@ const getMarkerPosition = color => {
         default:
             break;
     }
-    return [cell, width];
+    return [cell + options.backOffsetH, width];
 }
 
 const drawMarker = (cell, width) => {
@@ -908,13 +949,15 @@ const showMarker = color => {
 const newCanvas = () => {
     editorWindow.columns01 = spriteWidthPerMode[options.mergeMode] + options.spriteGap01;
     editorWindow.columns23 = spriteWidthPerMode[options.mergeMode] + options.spriteGap23;
-    editorWindow.columns = isPlayer23Mode() ? Math.max(editorWindow.columns01, editorWindow.columns23 + options.pairGap) : editorWindow.columns01;
+    editorWindow.columnsActive = (isPlayer23Mode() ? Math.max(editorWindow.columns01, editorWindow.columns23 + options.pairGap) : editorWindow.columns01);
+    editorWindow.columns = (options.backOffsetH * 2) + editorWindow.columnsActive
+    editorWindow.rows = (options.backOffsetV * 2) + options.spriteHeight;
     editorWindow.cwidth = getWidthMultiplier() * zoomCellSize[options.cellSize];
     editorWindow.cxoffset = editorWindow.cwidth + options.showGrid;
     editorWindow.cheight = Math.floor(zoomCellSize[options.cellSize] / options.lineResolution);
     editorWindow.cyoffset = editorWindow.cheight + options.showGrid;
     editorWindow.swidth = editorWindow.columns * editorWindow.cxoffset - options.showGrid;
-    editorWindow.sheight = options.spriteHeight * editorWindow.cyoffset - options.showGrid;
+    editorWindow.sheight = editorWindow.rows * editorWindow.cyoffset - options.showGrid;
 
     $('#editor_box').empty();
     const cnv = $('<canvas/>')
@@ -930,6 +973,14 @@ const newCanvas = () => {
     $('#editor_box').append(cnv);
     editorCtx = cnv[0].getContext('2d');
     if (options.dliOn) {
+        const spacers = _.times(2, ()=> {
+            return _.times(options.backOffsetV, i => {
+                return $("<ul/>")
+                    .addClass('dli_row spacer')
+                    .css('height', editorWindow.cyoffset)
+            })
+        });
+
         const cells = _.times(options.spriteHeight, i => {
             return $("<ul/>")
                 .addClass('dli_row')
@@ -943,7 +994,7 @@ const newCanvas = () => {
             .removeClass('none')
             .css('height', editorWindow.sheight)
             .empty()
-            .append(cells);
+            .append(spacers[0],cells,spacers[1]);
     } else {
         $('#dli_box')
             .addClass('none')
@@ -956,7 +1007,7 @@ const newCanvas = () => {
 const getFrameImage = (frame, scalex, scaley) => {
     scalex *= getWidthMultiplier();
     const w = Math.floor((editorWindow.columns) * scalex);
-    const h = Math.floor(options.spriteHeight * scaley);
+    const h = Math.floor(editorWindow.rows * scaley);
     const cnv = $('<canvas/>')
         .addClass('framepreview')
         .attr('width', w)
@@ -965,7 +1016,7 @@ const getFrameImage = (frame, scalex, scaley) => {
     //ctx.translate(0.5, 0.5);
     //ctx.imageSmoothingEnabled = false;
     const imageData = ctx.createImageData(w, h);
-    for (let row = 0; row < options.spriteHeight; row++) {
+    for (let row = 0; row < editorWindow.rows; row++) {
         for (let col = 0; col < editorWindow.columns; col++) {
             const crgb = getRGBOn(frame, col, row);
             ctx.fillStyle = crgb;
@@ -984,7 +1035,7 @@ const drawBlock = (x, y, crgb) => {
 
 const drawEditor = () => {
     editorCtx.clearRect(0, 0, editorWindow.swidth, editorWindow.sheight);
-    for (let row = 0; row < options.spriteHeight; row++) {
+    for (let row = 0; row < editorWindow.rows; row++) {
         for (let col = 0; col < editorWindow.columns; col++) {
             drawBlock(col, row, getRGBOn(workspace.selectedFrame, col, row));
         }
@@ -1107,7 +1158,7 @@ const drawGridLine = (x1, y1, x2, y2) => {
 };
 
 const drawGrid = () => {
-    for (let row = 1; row < options.spriteHeight; row++) {
+    for (let row = 1; row < editorWindow.rows; row++) {
         const y = (editorWindow.cyoffset * row) - options.showGrid;
         drawGridLine(0, y, editorWindow.swidth, y);
     }
@@ -1628,19 +1679,32 @@ const openBackgroundFile = function (event) {
     var file = input.files[0];
     loadBackground(file);
     $("#fdialogx").blur();
-    updateScreen();
 };
 
 const parseError = msg => { alert(msg); }
 
+const map2bpp = (data, colors) => {
+    outdata = [];
+    data.forEach(b=>{
+        c = (b & 0b11000000) >> 6;
+        outdata.push(colors[c])
+        c = (b & 0b00110000) >> 4;
+        outdata.push(colors[c])
+        c = (b & 0b00001100) >> 2;
+        outdata.push(colors[c])
+        c = (b & 0b00000011) ;
+        outdata.push(colors[c])
+    })
+    return outdata;
+}
+
 const parseBackImage = (binData) => {
 
     const binSize = binData.length;
-    const colorPtr = binSize-5;
-    return {
-        data: Array.from(binData),
-        colors: Array.from(binData.subarray(colorPtr,colorPtr+4))
-    }
+    const colorPtr = binSize-4;
+    const colors = Array.from(binData.subarray(colorPtr,colorPtr+4));
+    const image = Array.from(binData.subarray(0,colorPtr));
+    return map2bpp(image,colors);
 }
 
 const parseBinary = (binData) => {
@@ -1796,6 +1860,8 @@ const loadBackground = function (file) {
             const binFileData = new Uint8Array(arrayBuffer);
             workspace.backgroundImage = parseBackImage(binFileData);
             file.name = '';
+            updateScreen();
+
         };
         reader.readAsArrayBuffer(file);
     }
@@ -2374,18 +2440,18 @@ const moveFrame = dir => {
         workspace.frames[tempframeNum] = _.cloneDeep(workspace.frames[f]);
         clearFrame(f);
         for (let row = 0; row < options.spriteHeight; row++) {
-            for (let col = 0; col < editorWindow.columns; col++) {
+            for (let col = 0; col < editorWindow.columnsActive; col++) {
                 let target = col + dir;
                 let clear = false;
                 if (target < 0) {
                     if (!options.wrapEditor) { clear = true }
-                    target = editorWindow.columns - 1
+                    target = editorWindow.columnsActive - 1;
                 };
-                if (target == editorWindow.columns) {
+                if (target == editorWindow.columnsActive) {
                     if (!options.wrapEditor) { clear = true }
                     target = 0;
                 };
-                setColorOn(f, target, row, clear ? 0 : moveColor(getColorOn(tempframeNum, col, row), col, target));
+                setColorOn(f, target, row, clear ? 0 : moveColor(getColorOn(tempframeNum, col + options.backOffsetH, row + options.backOffsetV), col, target));
             }
         }
         workspace.frames.pop();
@@ -2742,6 +2808,9 @@ const libraryLoad = item => {
     for (let opt of optToLoad) {
         options[opt] = toLoad.spriteOptions[opt] !== undefined ? toLoad.spriteOptions[opt] : defaultOptions[opt];
     }
+    undos = [];
+    redos = [];
+    storeUndos();
     storeOptions();
     workspace.backgroundColor = toLoad.spriteData.backgroundColor;
     workspace.frames = _.cloneDeep(toLoad.spriteData.frames);
@@ -3156,10 +3225,11 @@ $(document).ready(function () {
             .bind('mousedown', pickerClicked);
         $(`#color${c}`).append(picker);
     }
+
     const backImage = $("<label/>");
     backImage.attr('id', `back_img_pick`)
-        .addClass('picker imgpicker')
-        .bind('mousedown', imgPickerClicked);
+        .addClass('picker imgpicker');
+        
     $(`#color0`).append(backImage);
 
     $('.layer_switch').bind('mousedown', layerSwitchClicked);
@@ -3176,7 +3246,9 @@ $(document).ready(function () {
 
     const inp = $(`<input type='file' id='fdialogx' class='fileinput' onclick='this.value=null'>`);
     //inp.attr('accept','.mic,.raw')
-    $('#back_img_pick').attr('for', `fdialogx`).attr('title', 'Load background image');
+    $('#back_img_pick')
+    .attr('title', 'Load background image')
+    .bind('mousedown', imgPickerClicked);
     inp.change(openBackgroundFile);
     $(`#color0`).append(inp);
 
