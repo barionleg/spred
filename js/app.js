@@ -541,7 +541,7 @@ const getColorOn = (frame, col, row) => {
 }
 const getBackRGB = (col, row) => {
     const backWidth = 4 * (options.backImageWidth?options.backImageWidth:Math.ceil(editorWindow.columns / 4));
-    const backOffset = row*backWidth + col;
+    const backOffset = (options.backOffset * 4) + (row * backWidth) + col;
     const color = workspace.backgroundImage[backOffset]?workspace.backgroundImage[backOffset]:0;
     return getByteRGB(color);
 }
@@ -1626,7 +1626,8 @@ const saveFile = () => {
     binList.push(options.spriteGap01);
     binList.push(options.spriteGap23);
     binList.push(options.pairGap);
-    binList.push(options.dliOn);
+    const flags = options.dliOn + (options.commonPalette << 1);
+    binList.push(flags);
     binList.push(options.frameDelayMode);
     binList.push(0); // 1 unused byte
     binList.push(workspace.frames.length, options.spriteHeight);
@@ -1784,7 +1785,9 @@ const parseBinary = (binData) => {
         options.spriteGap01 = binData[binPtr++];
         options.spriteGap23 = binData[binPtr++];
         options.pairGap = binData[binPtr++];
-        options.dliOn = binData[binPtr++];
+        const flags = binData[binPtr++];
+        options.dliOn = flags & 1;
+        options.commonPalette = (flags & 2) >> 1;
         options.frameDelayMode = binData[binPtr++];
         let frameCount = binData[binPtr++];
 
@@ -2606,20 +2609,6 @@ const keyPressed = e => {               // always working
                     toggleExport();
                 };
                 break;
-            case 'KeyO':
-                if (!e.ctrlKey) {
-                    toggleOpt('ORDrawsOutside');
-                }
-                break;
-            case 'KeyM':
-                toggleOpt('markActiveRegion');
-                break;
-            case 'KeyW':
-                toggleOpt('wrapEditor');
-                break;
-            case 'KeyG':
-                toggleOpt('showGrid');
-                break;
         }
     }
     if (($('.dialog:visible').length == 0) && (!libraryOpened)) { // editor only
@@ -2763,7 +2752,20 @@ const keyPressed = e => {               // always working
                     saveUndo('paste frame', pasteFrame)();
                 }
                 break;
-
+            case 'KeyO':
+                if (!e.ctrlKey) {
+                    toggleOpt('ORDrawsOutside');
+                }
+                break;
+            case 'KeyM':
+                toggleOpt('markActiveRegion');
+                break;
+            case 'KeyW':
+                toggleOpt('wrapEditor');
+                break;
+            case 'KeyG':
+                toggleOpt('showGrid');
+                break;                
             default:
                 break;
         }
@@ -3145,7 +3147,7 @@ const saveGifHandler = blob => {
 }
 
 const gifExporter = (scale, handler) => {
-    const gif = new GIF({ workerScript: "js/gif.worker.js", quality: 10 });
+    const gif = new GIF({ workerScript: "js/gif.worker.js", quality: 1 });
     _.each(workspace.frames, (f, i) => {
         const delayTime = (options.frameDelayMode == 1) ? f.delayTime : options.animationSpeed;
         gif.addFrame(getFrameImage(i, scale, scale / options.lineResolution)[0], { delay: delayTime * 20 });
