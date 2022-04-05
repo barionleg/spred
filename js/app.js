@@ -1888,6 +1888,10 @@ const dropFile = function (file) {
             if (newWorkspace) {
                 newCanvas();
                 workspace = newWorkspace;
+                options.showBackground = 0;
+                if (workspace.backgroundImage) {
+                    delete(workspace.backgroundImage);
+                }
                 refreshOptions();
                 updateOptions();
                 updateScreen();
@@ -2815,6 +2819,10 @@ const libraryLoad = item => {
     }
     undos = [];
     redos = [];
+    options.showBackground = 0;
+    if (workspace.backgroundImage) {
+        delete(workspace.backgroundImage);
+    }
     storeUndos();
     storeOptions();
     workspace.backgroundColor = toLoad.spriteData.backgroundColor;
