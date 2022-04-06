@@ -2,13 +2,14 @@ const gui = (options, dropHandler) => {
 
     let fileDialogs = 0;
  
-    const addMenuItem = (name, handler, parent = 'menulist', hint, aclass) => {
+    const addMenuItem = (name, handler, parent = 'menulist', hint, aclass, itemId) => {
         const li = $('<li/>').html(name).addClass('menuitem').bind('click', e => {
             e.preventDefault();
             e.stopPropagation();
             if (handler) handler();
         });
         if (hint) li.attr('title', hint);
+        if (itemId) li.attr('id', itemId);
         if (aclass) li.addClass(aclass);
         li.appendTo(`#${parent}`);
         return li;

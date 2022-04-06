@@ -26,8 +26,8 @@ const dliColorMap = ['back', 'c0', 'c1', null, null, 'c2', 'c3'];
 const restDBKey = "6225278734fd621565858bd2";
 
 const defaultOptions = {
-    version: '1.1.4',
-    storageName: 'SprEdStore114',
+    version: '1.1.5',
+    storageName: 'SprEdStore115',
     undoLevels: 128,
     lineResolution: 1,
     spriteHeight: 16,
@@ -3200,15 +3200,15 @@ $(document).ready(function () {
     app.addMenuItem('Flip-H', saveUndo('flip h', flipHFrame), 'framemenu', 'Flips frame horizontally');
     app.addMenuItem('Flip-V', saveUndo('flip v', flipVFrame), 'framemenu', 'Flips frame vertically');
     app.addSeparator('framemenu');
-    app.addMenuItem('🡄', saveUndo('move left', moveFrameContentsLeft), 'framemenu', 'Moves frame contents left');
-    app.addMenuItem('🡆', saveUndo('move right', moveFrameContentsRight), 'framemenu', 'Moves frame contents right');
-    app.addMenuItem('🡅', saveUndo('move up', moveFrameContentsUp), 'framemenu', 'Moves frame contents up');
-    app.addMenuItem('🡇', saveUndo('move down', moveFrameContentsDown), 'framemenu', 'Moves frame contents down');
+    app.addMenuItem('', saveUndo('move left', moveFrameContentsLeft), 'framemenu', 'Moves frame contents left', 'arrow', 'arrLeft');
+    app.addMenuItem('', saveUndo('move right', moveFrameContentsRight), 'framemenu', 'Moves frame contents right', 'arrow', 'arrRight');
+    app.addMenuItem('', saveUndo('move up', moveFrameContentsUp), 'framemenu', 'Moves frame contents up', 'arrow', 'arrUp');
+    app.addMenuItem('', saveUndo('move down', moveFrameContentsDown), 'framemenu', 'Moves frame contents down', 'arrow', 'arrDown');
     app.addSeparator('framemenu');
-    app.addMenuItem('≡+', saveUndo('double lines', heightUp), 'framemenu', 'Expand by doubling lines');
-    app.addMenuItem('≡−', saveUndo('tighten', heightDown), 'framemenu', 'Remove every second line');
+    app.addMenuItem('', saveUndo('double lines', heightUp), 'framemenu', 'Expand by doubling lines', 'sizeIcon', 'sizeExtend');
+    app.addMenuItem('', saveUndo('tighten', heightDown), 'framemenu', 'Remove every second line', 'sizeIcon', 'sizeShrink');
     app.addSeparator('framemenu');
-    app.addMenuItem('⮬⮯', saveUndo('swap pairs', swapPairs), 'framemenu', 'Swap pairs', 'pairOnly');
+    app.addMenuItem('', saveUndo('swap pairs', swapPairs), 'framemenu', 'Swap pairs', 'pairOnly sizeIcon', 'swapPairs');
 
     app.addSeparator('framemenu');
     app.addMenuItem('Library', toggleLibrary, 'framemenu', 'Toggle Library', 'libButton');
@@ -3220,15 +3220,15 @@ $(document).ready(function () {
     const err = $('<div/>').attr('id', 'lib_error');
     $('#libmenu').append(err);
 
-    app.addMenuItem('▶', startPlayer, 'timemenu', 'Starts Animation [Space]');
-    app.addMenuItem('⏹︎', stopPlayer, 'timemenu', 'Stops Animation [Space]');
+    app.addMenuItem('', startPlayer, 'timemenu', 'Starts Animation [Space]', 'arrow', 'iconPlay');
+    app.addMenuItem('', stopPlayer, 'timemenu', 'Stops Animation [Space]', 'arrow', 'iconStop');
     app.addSeparator('timemenu');
     app.addMenuItem('Add', saveUndo('add frame', addFrame), 'timemenu', 'Adds new empty frame');
     app.addMenuItem('Clone', saveUndo('clone frame', cloneFrame), 'timemenu', 'Adds copy of frame');
     app.addMenuItem('Delete', saveUndo('delete frame', delFrame), 'timemenu', 'Deletes current frame');
     app.addSeparator('timemenu');
-    app.addMenuItem('🡄🞑', animFrameLeft, 'timemenu', 'Moves current frame left');
-    app.addMenuItem('🞑🡆', animFrameRight, 'timemenu', 'Moves current frame right');
+    app.addMenuItem('', animFrameLeft, 'timemenu', 'Moves current frame left', 'frameIcon', 'frameLeft');
+    app.addMenuItem('', animFrameRight, 'timemenu', 'Moves current frame right', 'frameIcon', 'frameRight');
     app.addSeparator('timemenu');
     app.addMenuItem('Delete All', deleteAll, 'timemenu', 'Clears and deletes all frames');
     app.addSeparator('timemenu');

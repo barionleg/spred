@@ -805,3 +805,69 @@ ul#library_list>li>div>img {
   margin-right: 20px;
 }
 
+.arrow {
+  width:12px;
+  background-size: auto 18px;
+  background-repeat: no-repeat;
+  background-position:center center;
+}
+
+.sizeIcon {
+  width:18px;
+  background-size: auto 18px;
+  background-repeat: no-repeat;
+  background-position:center center;
+}
+
+.frameIcon {
+  width:18px;
+  background-size: auto 18px;
+  background-repeat: no-repeat;
+  background-position:center center;
+}
+
+#arrLeft {
+  background-image: url(../img/arrLeft.png);
+}
+
+#arrRight {
+  background-image: url(../img/arrRight.png);
+}
+
+#arrUp {
+  background-image: url(../img/arrUp.png);
+}
+
+#arrDown {
+  background-image: url(../img/arrDown.png);
+}
+
+#frameLeft {
+  background-image: url(../img/frameleft.png);
+}
+
+#frameRight {
+  background-image: url(../img/frameright.png);
+}
+
+#iconPlay {
+  background-image: url(../img/play.png);
+}
+
+#iconStop {
+  background-image: url(../img/stop.png);
+}
+
+#swapPairs {
+  background-image: url(../img/swap.png);
+}
+
+#sizeExtend {
+  background-image: url(../img/extend.png);
+}
+
+#sizeShrink {
+  background-image: url(../img/shrink.png);
+}
+
+
