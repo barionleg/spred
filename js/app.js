@@ -1,5 +1,5 @@
 const GRID_COLOR = 'rgba(200,200,200,0.3)';
-const MAX_FILESIZE = 64 * 1024;
+const MAX_FILESIZE = 10 * 1024;
 const aplHeader = [0x9a, 0xf8, 0x39, 0x21];
 const apl2Header = [0x45, 0x64, 0x52, 0x32];
 const sprHeader = [0x53, 0x70, 0x72, 0x21];
@@ -1322,7 +1322,7 @@ const clampOptions = () => {
     clampOption('gifExportScale', 1, 32);
     clampOption('backOffsetH', 0, 4);
     clampOption('backOffsetV', 0, 4);
-    clampOption('backOffset', 0, 64 * 1024);
+    clampOption('backOffset', 0, MAX_FILESIZE);
     clampOption('backImageWidth', 0, 40);
 
 }
