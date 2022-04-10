@@ -144,13 +144,14 @@ const parseTemplate = (template) => {
 
     const pushDliData = () => {
         tsprite = '';
-        for (tdli of dliMap) {
+        const dliList = isPlayer23Mode()?dliMap:dliMap.slice(0,3);
+        for (tdli of dliList) {
             let dli = '';
             _.each(workspace.frames, (frame, f) => {
                 lines = '';
                 tframe = f;
                 pushArray(frame.dli[tdli]);
-                dli += getBlock(lines, template.frame);
+                dli += getBlock(lines, template.frameNoLabel || template.frame);
             });
             pushBlock(dli, template.dli);
         }

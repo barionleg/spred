@@ -23,6 +23,9 @@ const exportTemplates = [
         frame: {
             prefix: '; FRAME #f#\n#lp#SPR_#s#_FRM_#f#\n', postfix: ''
         },
+        frameNoLabel: {
+            prefix: '; FRAME #f#\n', postfix: ''
+        },
         frameDelays: {
             prefix: '\n; DELAY TIMES \n', postfix: ''
         },
@@ -56,6 +59,9 @@ const exportTemplates = [
         },
         frame: {
             prefix: '; FRAME #f#\n#lp#SPR_#s#_FRM_#f#\n', postfix: ''
+        },
+        frameNoLabel: {
+            prefix: '; FRAME #f#\n', postfix: ''
         },
         frameDelays: {
             prefix: '\n; DELAY TIMES \n', postfix: ''
@@ -91,6 +97,9 @@ const exportTemplates = [
         },
         frame: {
             prefix: '; FRAME #f#\n#lp#SPR_#s#_FRM_#f#\n', postfix: ''
+        },
+        frameNoLabel: {
+            prefix: '; FRAME #f#\n', postfix: ''
         },
         frameDelays: {
             prefix: '\n; DELAY TIMES \n', postfix: ''
