@@ -14,8 +14,12 @@ const saveUndo = (name, modifier) => {
         const undoData = _.cloneDeep(workspace);
         const result = modifier ? modifier() : true;
         if (result) {
+            if (undos.length > 50) {
+                undos.shift();
+            }
             pushUndo(name, undoData);
         }
+
     }
 }
 
