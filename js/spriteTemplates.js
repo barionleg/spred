@@ -1,7 +1,7 @@
 
 const spriteTemplates = [
     {
-        name: 'Simple 8x8 sprite (square)',
+        name: 'Simple 8x8 (square)',
         opts: {
             lineResolution: 1,
             mergeMode: 0,
@@ -12,7 +12,7 @@ const spriteTemplates = [
         }
     },
     {
-        name: 'Simple 8x16 sprite (brick)',
+        name: 'Simple 8x16 (brick)',
         opts: {
             lineResolution: 2,
             mergeMode: 0,
@@ -34,7 +34,7 @@ const spriteTemplates = [
         }
     },
     {
-        name: 'Big 16x16 sprite (square)',
+        name: 'Big 16x16 (square)',
         opts: {
             lineResolution: 1,
             mergeMode: 0,
@@ -45,7 +45,7 @@ const spriteTemplates = [
         }
     },
     {
-        name: 'Wide 32x16 sprite (square)',
+        name: 'Wide 32x16 (square)',
         opts: {
             lineResolution: 1,
             mergeMode: 4,
@@ -56,7 +56,7 @@ const spriteTemplates = [
         }
     },
     {
-        name: 'SuperWide 40x20 sprite (square)',
+        name: 'SuperWide 40x20 (square)',
         opts: {
             lineResolution: 1,
             mergeMode: 5,
