@@ -550,7 +550,6 @@ const imgPickerClicked = e => {
         updateScreen();
         return false;
     }
-    options.showBackground = true;
     $('#fdialogx').trigger('click');
     colorClicked(0);
 }
