@@ -245,9 +245,9 @@ const loadBackground = function (file) {
             const binFileName = file.name;
             const binFileData = new Uint8Array(arrayBuffer);
             workspace.backgroundImage = parseBackImage(binFileData);
+            options.showBackground = true;
             file.name = '';
             updateScreen();
-
         };
         reader.readAsArrayBuffer(file);
     }
