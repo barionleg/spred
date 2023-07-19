@@ -27,8 +27,9 @@ const restDBKey = "6225278734fd621565858bd2";
 
 const defaultOptions = {
     version: '1.1.6',
-    storageName: 'SprEdStore116',
+    storageName: 'SprEdStore118',
     undoLevels: 128,
+    spriteTemplate: -1,
     lineResolution: 1,
     spriteHeight: 16,
     spriteGap01: 0,
