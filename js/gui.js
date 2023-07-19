@@ -38,6 +38,7 @@ const gui = (options, dropHandler) => {
     $('#close_export').click(saveOptions);
     $('#close_help').click(toggleHelp);
     $('#opt_lastTemplate_i').change(templateChange);
+    $('#opt_spriteTemplate_i').change(spritetemplateChange);
 
     $("select, input").filter( (i,o) => { return _.endsWith($(o).attr('id'),'_b')} ).change(()=>{
         updateOptions();
@@ -48,6 +49,13 @@ const gui = (options, dropHandler) => {
         const option = $('<option/>').val(templateIdx).html(template.name);
         $('#opt_lastTemplate_i').append(option);
     };
+
+    for (let templateIdx in spriteTemplates) {
+        const template = spriteTemplates[templateIdx];
+        const option = $('<option/>').val(templateIdx).html(template.name);
+        $('#opt_spriteTemplate_i').append(option);
+    };
+
 
     $('html').on("drop", function (event) {
         event.preventDefault();

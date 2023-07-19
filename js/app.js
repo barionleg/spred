@@ -667,6 +667,7 @@ const onCanvasMove = (event) => {
 
 const clickOnCanvas = (event) => {
     if (animationOn && !options.drawOnPlay) { return false };
+    if ($('div.dialog:visible').length>0) {return false};
     currentCell = locateCell(event);
     if (currentCell) {
         penDown = true;
@@ -1004,6 +1005,26 @@ const templateChange = () => {
     updateOptions();
     exportData();
 }
+
+const loadSpriteTemplate = () => {
+    if (options.spriteTemplate!=-1) {
+        options = Object.assign(options,spriteTemplates[options.spriteTemplate].opts);
+        refreshOptions();
+        newCanvas();
+        if (animationOn) {
+            stopPlayer();
+            startPlayer();
+        }
+        updateScreen();
+        updateOptions();
+    }
+}
+
+const spritetemplateChange = () => {
+    updateOptions();
+    loadSpriteTemplate();
+}
+
 
 const toggleDiv = (divId) => {
     closeAllDialogs();

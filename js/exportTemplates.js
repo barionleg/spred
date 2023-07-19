@@ -4,6 +4,7 @@
 const exportTemplates = [
     {
         name:'MADS Assembler',
+        mode: 0, // order by sprites
         block: {
             prefix: '; SPRITE DATA\n; frames, height, gap\n  dta #frames#,#height#,#gap01#\n\n',
             prefix23: '; SPRITE DATA\n; frames, height, gap0_1, gap2_3, pair_gap\n  dta #frames#,#height#,#gap01#,#gap23#,#pairgap#\n\n', postfix: ''
@@ -41,6 +42,7 @@ const exportTemplates = [
     
     {
         name:'MADS Assembler (.he notation)',
+        mode: 0, // order by sprites
         block: {
             prefix: '; SPRITE DATA\n; frames, height, gap\n  .he #frames# #height# #gap01#\n\n',
             prefix23: '; SPRITE DATA\n; frames, height, gap0_1, gap2_3, pair_gap\n  .he #frames# #height# #gap01# #gap23# #pairgap#\n\n', postfix: ''
@@ -79,6 +81,7 @@ const exportTemplates = [
 
     {
         name:'Other Assemblers',
+        mode: 0, // order by sprites
         block: {
             prefix: '; SPRITE DATA\n; frames, height, gap\n  .BYTE #frames#,#height#,#gap01#\n\n',
             prefix23: '; SPRITE DATA\n; frames, height, gap0_1, gap2_3, pair_gap\n  .BYTE #frames#,#height#,#gap01#,#gap23#,#pairgap#\n\n', postfix: ''
@@ -116,6 +119,7 @@ const exportTemplates = [
 
     {
         name:'MAC/65',
+        mode: 0, // order by sprites
         block: {
             prefix: '#-1# .BYTE #frames#,#height#,#gap01# ;frames, height, gap\n', 
             prefix23: '#-1# .BYTE #frames#,#height#,#gap01#,#gap23#,#pairgap# ;frames, height, gap0_1, gap2_3, pair_gap\n', 
@@ -150,6 +154,7 @@ const exportTemplates = [
 
     {
         name:'Mad-Pascal',
+        mode: 0, // order by sprites
         block: {
             prefix: 'var\n  spriteFrames: byte = #frames#;\n  spriteHeight: byte = #height#;\n  spriteGap: byte = #gap01#;\n\n',
             prefix23: 'var\n  spriteFrames: byte = #frames#;\n  spriteHeight: byte = #height#;\n  spriteGap01: byte = #gap01#;\n  spriteGap23: byte = #gap23#;\n  pairGap: byte = #pairgap#;\n\n', 
@@ -183,6 +188,7 @@ const exportTemplates = [
 
     {
         name:'Action!',
+        mode: 0, // order by sprites
         block: {
             prefix: 'BYTE FRAMES=#frames#,\n     HEIGHT=#height#,\n     GAP=#gap01#;\n\n', 
             prefix23: 'BYTE FRAMES=#frames#,\n     HEIGHT=#height#,\n     GAP01=#gap01#,\n     GAP23=#gap23#,\n     PAIRGAP=#pairgap#,\n\n', 
@@ -216,6 +222,7 @@ const exportTemplates = [
 
     {
         name:'CC65',
+        mode: 0, // order by sprites
         block: {
             prefix: 'unsigned char frames = #frames#;\nunsigned char height = #height#;\nunsigned char gap = #gap01#,\n\n',
             prefix23: 'unsigned char frames = #frames#;\nunsigned char height = #height#;\nunsigned char gap01 = #gap01#,\nunsigned char gap23 = #gap23#,\nunsigned char pairgap = #pairgap#,\n\n',
@@ -249,6 +256,7 @@ const exportTemplates = [
 
     {
         name:'FastBasic',
+        mode: 0, // order by sprites
         block: {
             prefix: 'frames = #frames#\nheight = #height#\ngap = #gap01#\n\n', 
             prefix23: 'frames = #frames#\nheight = #height#\ngap01 = #gap01#\ngap23 = #gap23#\npairgap = #pairgap#\n\n', 
@@ -283,6 +291,7 @@ const exportTemplates = [
 
     {
         name:'BASIC',
+        mode: 0, // order by sprites
         block: {
             prefix: '#-2# FRAMES=#frames#:HEIGHT=#height#:GAP=#gap01#\n#-1# REM *** SPRITE DATA ***\n', 
             prefix23: '#-2# FRAMES=#frames#:HEIGHT=#height#:GAP01=#gap01#:GAP23=#gap23#:PAIRGAP=#pairgap#\n#-1# REM *** SPRITE DATA ***\n', 
@@ -318,6 +327,7 @@ const exportTemplates = [
 
     {
         name:'Raw CSV sheet',
+        mode: 0, // order by sprites
         block: {
             prefix: '#frames#,#height#,#gap01#\n', 
             prefix23: '#frames#,#height#,#gap01#,#gap23#,#pairgap#\n', 
@@ -352,6 +362,7 @@ const exportTemplates = [
     
     {
         name:'Raw CSV one liner',
+        mode: 0, // order by sprites
         block: {
             prefix: '#frames#,#height#,#gap#,', 
             prefix23: '#frames#,#height#,#gap01#,#gap23#,#pairgap#,', 
@@ -384,4 +395,25 @@ const exportTemplates = [
         }
     },
     
+
+    {
+        name:'aNode icons JSON (PM0 + PM1 10x20)',
+        mode: 1, // order by frames
+        block: {
+            prefix: '// aNode icons \n{\n',
+            prefix23: '',
+            postfix: '}'
+        },
+        sprite: {prefix: '', postfix: ''},
+        frame: {
+            prefix: "'frame_#f#' : [\n", postfix: "],\n"
+        },
+        line: {
+            numbers: false, prefix: '  ', postfix: ",\n", lastpostfix: "\n"
+        },
+        byte: {
+            separator: ',', hexPrefix: '0x', binPrefix: '0b', 
+        }
+    },
+
 ]

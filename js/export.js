@@ -163,19 +163,47 @@ const parseTemplate = (template) => {
         pushBlock(lines, template.frameDelays);
     }
 
-    for (let p = 0; p < playerCount(); p++) { pushSpriteColors(p) };
+    let parsed = null;
 
-    for (let p = 0; p < playerCount(); p++) { pushSpriteData(p) };
+    if (template.mode==0) { // order by sprite
+        for (let p = 0; p < playerCount(); p++) { pushSpriteColors(p) };
 
-    if (isMissileMode()) { pushMissileData() };
+        for (let p = 0; p < playerCount(); p++) { pushSpriteData(p) };
+    
+        if (isMissileMode()) { pushMissileData() };
+    
+        if (options.dliOn) { pushDliData() };
+    
+        if (options.frameDelayMode) { pushFrameDelayData() };
+    
+        parsed = isPlayer23Mode() ?
+            parseTemplateVars(`${template.block.prefix23 || template.block.prefix}${templateLines}${template.block.postfix}`) :
+            parseTemplateVars(`${template.block.prefix}${templateLines}${template.block.postfix}`);
+    }
 
-    if (options.dliOn) { pushDliData() };
+    if (template.mode==1) { // order by frame
+        _.each(workspace.frames, (frame, f) => {
+            tframe = f;
+            lines = '';
+            frame.player[0].length = options.spriteHeight;
+            frame.missile[0].length = options.spriteHeight;
+            const data = [
+                ...frame.player[0],
+                ...frame.player[1],
+                ...frame.missile[0].map((m0,r)=>(m0 | (frame.missile[1][r]<<2))),
+                frame.colors[0],frame.colors[1]
+            ]
+            pushArray(data);
+            const sprite = getBlock(lines, template.sprite);
+            pushBlock(sprite, template.frame);
+        });
 
-    if (options.frameDelayMode) { pushFrameDelayData() };
+        parsed = isPlayer23Mode() ?
+            parseTemplateVars(`${template.block.prefix23 || template.block.prefix}${templateLines}${template.block.postfix}`) :
+            parseTemplateVars(`${template.block.prefix}${templateLines}${template.block.postfix}`);
 
-    const parsed = isPlayer23Mode() ?
-        parseTemplateVars(`${template.block.prefix23 || template.block.prefix}${templateLines}${template.block.postfix}`) :
-        parseTemplateVars(`${template.block.prefix}${templateLines}${template.block.postfix}`);
+
+    }
 
     return parsed;
 }
