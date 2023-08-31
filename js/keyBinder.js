@@ -13,11 +13,11 @@ const keyPressed = e => {               // always working
     }
     if (($('.dialog:visible').length == 0) && (!libraryOpened)) { // editor only
         switch (e.code) {
-            case 'Minus':
+            case 'Minus','NumpadSubtract':
                 zoomOut();
                 updateScreen();
                 break;
-            case 'Equal':
+            case 'Equal','NumpadAdd':
                 zoomIn();
                 updateScreen();
                 break;
