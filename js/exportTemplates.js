@@ -406,14 +406,15 @@ const exportTemplates = [
         },
         sprite: {prefix: '', postfix: ''},
         frame: {
-            prefix: "'frame_#f#' : [\n", postfix: "],\n"
+            prefix: "'frame_#f#' : [", postfix: ",#isntsc#],\n"
         },
         line: {
-            numbers: false, prefix: '  ', postfix: ",\n", lastpostfix: "\n"
+            numbers: false, prefix: '', postfix: "", lastpostfix: ""
         },
         byte: {
             separator: ',', hexPrefix: '0x', binPrefix: '0b', 
         }
     },
+
 
 ]

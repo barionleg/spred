@@ -46,6 +46,7 @@ const parseTemplate = (template) => {
             .replace(/#maxframes#/g, formatByte(workspace.frames.length - 1))
             .replace(/#-1#/g, options.startingLine - 1)
             .replace(/#-2#/g, options.startingLine - 2)
+            .replace(/#isntsc#/g, formatByte(options.palette=='NTSC'?1:0))
     }
 
     const getBlock = (block, blockTemp) => {

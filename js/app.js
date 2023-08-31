@@ -707,11 +707,11 @@ const newCanvas = () => {
     editorWindow.columns = (options.backOffsetH * 2) + editorWindow.columnsActive
     editorWindow.rows = (options.backOffsetV * 2) + options.spriteHeight;
     editorWindow.cwidth = getWidthMultiplier() * zoomCellSize[options.cellSize];
-    editorWindow.cxoffset = editorWindow.cwidth + options.showGrid;
+    editorWindow.cxoffset = editorWindow.cwidth;// + options.showGrid;
     editorWindow.cheight = Math.floor(zoomCellSize[options.cellSize] / options.lineResolution);
-    editorWindow.cyoffset = editorWindow.cheight + options.showGrid;
-    editorWindow.swidth = editorWindow.columns * editorWindow.cxoffset - options.showGrid;
-    editorWindow.sheight = editorWindow.rows * editorWindow.cyoffset - options.showGrid;
+    editorWindow.cyoffset = editorWindow.cheight;// + options.showGrid;
+    editorWindow.swidth = editorWindow.columns * editorWindow.cxoffset;// - options.showGrid;
+    editorWindow.sheight = editorWindow.rows * editorWindow.cyoffset;// - options.showGrid;
 
     $('#editor_box').empty();
     const cnv = $('<canvas/>')
@@ -761,7 +761,7 @@ const newCanvas = () => {
 const drawBlock = (x, y, crgb) => {
     editorCtx.fillStyle = crgb;
     editorCtx.lineWidth = 0;
-    editorCtx.fillRect(x * editorWindow.cxoffset - options.showGrid, y * editorWindow.cyoffset - options.showGrid, editorWindow.cwidth, editorWindow.cheight);
+    editorCtx.fillRect(x * editorWindow.cxoffset , y * editorWindow.cyoffset, editorWindow.cwidth, editorWindow.cheight);
 }
 
 const drawEditor = () => {

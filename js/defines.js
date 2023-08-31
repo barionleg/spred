@@ -18,7 +18,7 @@ const spriteWidthPerMode = [
     8, 10, 10, 10, 8, 10, 10, 10
 ];
 
-const zoomCellSize = [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
+const zoomCellSize = [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 36, 40, 45, 50, 55, 60, 70, 80, 90, 100];
 
 const dliMap = ['back', 'c0', 'c1', 'c2', 'c3'];
 const dliColorMap = ['back', 'c0', 'c1', null, null, 'c2', 'c3'];
@@ -26,7 +26,7 @@ const dliColorMap = ['back', 'c0', 'c1', null, null, 'c2', 'c3'];
 const restDBKey = "6225278734fd621565858bd2";
 
 const defaultOptions = {
-    version: '1.1.9',
+    version: '1.2.0',
     storageName: 'SprEdStore119',
     undoLevels: 128,
     spriteTemplate: -1,
