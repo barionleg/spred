@@ -277,8 +277,8 @@ const LoadAnodeIcon = remoteAnodeIcon => {
     if (confirm('Do you want to load remote aNode icon?\n\nIt will clear your current workspace!!!')) {
         purgeAll();
         newCanvas();
-        loadSpriteTemplate();
         options.spriteTemplate = 2;
+        loadSpriteTemplate();
         iconData = parseAnodeIcon(remoteAnodeIcon);
         workspace.frames[0].player[0] = iconData.p0;
         workspace.frames[0].player[1] = iconData.p1;
