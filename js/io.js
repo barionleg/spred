@@ -53,6 +53,8 @@ const saveFile = () => {
     }
 };
 
+
+
 const openFile = function (event) {
     var input = event.target;
     var file = input.files[0];
@@ -251,6 +253,58 @@ const loadBackground = function (file) {
         };
         reader.readAsArrayBuffer(file);
     }
+}
+
+const parseAnodeIcon = (iconstring) => {
+    adata = [];
+    while (iconstring.length>1) {
+        adata.push(parseInt(iconstring.substr(0,2),16));
+        iconstring = iconstring.substr(2);
+    }
+    return {
+        p0:adata.slice(0,20),
+        p1:adata.slice(20,40),
+        m0:adata.slice(40,60).map(b=>b&3),
+        m1:adata.slice(40,60).map(b=>(b>>2)&3),
+        c0:adata[60],
+        c1:adata[61],
+        isntsc:adata[62]
+    }
+}
+
+const LoadAnodeIcon = remoteAnodeIcon => {
+    if (remoteAnodeIcon.length!=126) return false;
+    if (confirm('Do you want to load remote aNode icon?\n\nIt will clear your current workspace!!!')) {
+        purgeAll();
+        newCanvas();
+        loadSpriteTemplate();
+        options.spriteTemplate = 2;
+        iconData = parseAnodeIcon(remoteAnodeIcon);
+        workspace.frames[0].player[0] = iconData.p0;
+        workspace.frames[0].player[1] = iconData.p1;
+        workspace.frames[0].missile[0] = iconData.m0;
+        workspace.frames[0].missile[1] = iconData.m1;
+        workspace.frames[0].colors[0] = iconData.c0;
+        workspace.frames[0].colors[1] = iconData.c1;
+        options.palette = iconData.isntsc?"NTSC":"PAL";
+        storeOptions();
+        updateScreen();
+        window.location.search='';        
+    }
+}
+
+const aNodeExport = () => {
+    const icondata = [];
+    icondata.push(...workspace.frames[0].player[0]);
+    icondata.push(...workspace.frames[0].player[1]);
+    const m01 = workspace.frames[0].missile[0].map((m0,i)=>m0|(workspace.frames[0].missile[1][i]<<2));
+    icondata.push(...m01);
+    icondata.push(workspace.frames[0].colors[0])
+    icondata.push(workspace.frames[0].colors[1])
+    let pal = 0
+    if (options.palette == "NTSC") pal = 1;
+    icondata.push(pal);
+    prompt('pres Ctrl + C to copy aNode Icon Data string',JSON.stringify(icondata));
 }
 
 const dropFile = function (file) {

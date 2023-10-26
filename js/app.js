@@ -18,6 +18,16 @@ const isPlayer23Mode = () => {
     return ((options.mergeMode & 4) == 4)
 }
 
+const isAnodeMode = () => {
+    return (
+        (options.lineResolution==2) &&
+        (options.mergeMode==1) &&
+        (options.pairGap==0) &&
+        (options.spriteGap01==0) &&
+        (options.spriteHeight==20) 
+    );
+}
+
 const playerCount = () => {
     return isPlayer23Mode() ? 4 : 2;
 }
@@ -827,6 +837,7 @@ const updateMovieCursor = () => {
 
 const updateMenu = () => {
     $('.pairOnly').toggleClass('inactive', !isPlayer23Mode());
+    $('.export2Anode').toggleClass('inactive', !isAnodeMode());
 }
 
 const updateScreen = () => {
@@ -1125,6 +1136,7 @@ $(document).ready(function () {
 
     app.addSeparator('framemenu');
     app.addMenuItem('Library', toggleLibrary, 'framemenu', 'Toggle Library', 'libButton');
+    app.addMenuItem('▣', aNodeExport, 'framemenu', 'Export to aNode suite', 'export2Anode')
 
     //    app.addMenuItem('Upload current project', saveUndo('upload', postData), 'libmenu', 'Upload');
     app.addMenuItem('Reload Library', () => { getLibraryData(0) }, 'libmenu', 'Reload Library', 'libButton');
@@ -1192,5 +1204,13 @@ $(document).ready(function () {
     newCanvas();
     updateScreen();
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const remoteAnodeIcon = urlParams.get('aicon');
+    
+    if (remoteAnodeIcon) {
+        LoadAnodeIcon(remoteAnodeIcon);
+        
+    }
+    
 
 });

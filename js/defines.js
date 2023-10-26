@@ -26,8 +26,8 @@ const dliColorMap = ['back', 'c0', 'c1', null, null, 'c2', 'c3'];
 const restDBKey = "6225278734fd621565858bd2";
 
 const defaultOptions = {
-    version: '1.2.0',
-    storageName: 'SprEdStore119',
+    version: '1.2.1',
+    storageName: 'SprEdStore121',
     undoLevels: 128,
     spriteTemplate: -1,
     lineResolution: 1,

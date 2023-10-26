@@ -41,17 +41,21 @@ const jumpToPrevFrame = () => {
     updateScreen();
 }
 
+const purgeAll = () => {
+    workspace.frames.length = 1;
+    workspace.selectedFrame = 0;
+    clearFrame(0);
+    fixWorkspace();
+    storeWorkspace();
+    _.remove(undos);
+    _.remove(redos);
+    storeUndos();
+}
+
 const deleteAll = () => {
     if (animationOn) { return false };
     if (confirm('Do you really want to delete and erase all frames?  NO UNDO!')) {
-        workspace.frames.length = 1;
-        workspace.selectedFrame = 0;
-        clearFrame(0);
-        fixWorkspace();
-        storeWorkspace();
-        _.remove(undos);
-        _.remove(redos);
-        storeUndos();
+        purgeAll();
         updateScreen();
     }
     return true;

@@ -394,27 +394,7 @@ const exportTemplates = [
             hexPrefix: '$'
         }
     },
-    
-
-    {
-        name:'aNode icons JSON (PM0 + PM1 10x20)',
-        mode: 1, // order by frames
-        block: {
-            prefix: '// aNode icons \n{\n',
-            prefix23: '',
-            postfix: '}'
-        },
-        sprite: {prefix: '', postfix: ''},
-        frame: {
-            prefix: "'frame_#f#' : [", postfix: ",#isntsc#],\n"
-        },
-        line: {
-            numbers: false, prefix: '', postfix: "", lastpostfix: ""
-        },
-        byte: {
-            separator: ',', hexPrefix: '0x', binPrefix: '0b', 
-        }
-    },
+   
 
 
 ]
