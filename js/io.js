@@ -295,16 +295,25 @@ const LoadAnodeIcon = remoteAnodeIcon => {
 
 const aNodeExport = () => {
     const icondata = [];
-    icondata.push(...workspace.frames[0].player[0]);
-    icondata.push(...workspace.frames[0].player[1]);
-    const m01 = workspace.frames[0].missile[0].map((m0,i)=>m0|(workspace.frames[0].missile[1][i]<<2));
+    
+    icondata.push(...workspace.frames[workspace.selectedFrame].player[0]);
+    icondata.push(...workspace.frames[workspace.selectedFrame].player[1]);
+    const m01 = workspace.frames[workspace.selectedFrame].missile[0].map((m0,i)=>m0|(workspace.frames[workspace.selectedFrame].missile[1][i]<<2));
     icondata.push(...m01);
-    icondata.push(workspace.frames[0].colors[0])
-    icondata.push(workspace.frames[0].colors[1])
+    icondata.push(workspace.frames[workspace.selectedFrame].colors[0])
+    icondata.push(workspace.frames[workspace.selectedFrame].colors[1])
     let pal = 0
     if (options.palette == "NTSC") pal = 1;
     icondata.push(pal);
-    prompt('pres Ctrl + C to copy aNode Icon Data string',JSON.stringify(icondata));
+    const datatext = JSON.stringify(icondata);
+    let msg = 'press Ctrl + C to copy aNode Icon Data string';
+    try {
+        navigator.clipboard.writeText(datatext);
+        msg = 'aNode Icon Data string copied to clipboard'
+    } catch(e) {
+        console.log('clipboard inaccesible')
+    }
+    prompt(msg,datatext);
 }
 
 const dropFile = function (file) {
